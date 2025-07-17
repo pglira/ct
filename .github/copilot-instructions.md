@@ -5,4 +5,4 @@
 - This is a Vite + React TypeScript PWA for calorie tracking.
 - Use localStorage for persistence.
 - UI must be responsive and mobile-first.
-- Editable food database, daily limit, and daily entries (reset at midnight).
+- Editable food database, daily limit, and daily entries (reset manually).
