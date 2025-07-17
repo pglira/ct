@@ -1,18 +1,6 @@
 body, :root {
   margin: 0;
   font-family: 'Inter', system-ui, sans-serif;
-  --primary: #0087ff;
-  --primary-dark: #005bb5;
-  --bg: #f7f7f7;
-  --bg-light: #fff;
-  --card: #fff;
-  --section: #f3f6fa;
-  --input: #fff;
-  --input-border: #bdbdbd;
-  --text: #222;
-  --text-light: #888;
-  --accent: #0087ff;
-  --danger: #c62828;
 }
 
 html, body {
