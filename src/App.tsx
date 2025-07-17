@@ -20,6 +20,9 @@ import { styled } from '@mui/material/styles';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import './App.css';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 // Types
 type Food = {
@@ -56,6 +59,14 @@ function save<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+// Helper to get system theme
+function getSystemTheme(): 'light' | 'dark' {
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'light';
+}
+
 function App() {
   // State
   const [dailyLimit, setDailyLimit] = useState<number>(() => load('dailyLimit', 2000));
@@ -66,12 +77,15 @@ function App() {
   const [entryFoodId, setEntryFoodId] = useState<string>('');
   const [entryGrams, setEntryGrams] = useState<string>('');
   const [tab, setTab] = useState(0);
+  const [mode, setMode] = useState<'light' | 'dark'>(() => load('themeMode', getSystemTheme()));
   // Remove editId, editName, editKcal state and handlers
 
   // Effects: persist state
   useEffect(() => { save('dailyLimit', dailyLimit); }, [dailyLimit]);
   useEffect(() => { save('foodDb', foodDb); }, [foodDb]);
   useEffect(() => { save(getTodayKey(), entries); }, [entries]);
+  // Effect: persist theme mode
+  useEffect(() => { save('themeMode', mode); }, [mode]);
 
   // Reset entries at midnight
   useEffect(() => {
@@ -166,282 +180,332 @@ function App() {
     },
   }));
 
+  // MUI theme
+  const theme = createTheme({
+    palette: {
+      mode,
+    },
+  });
+
   return (
-    <Container maxWidth="xs">
-      <Box mb={2}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="fullWidth">
-          <Tab label="Tracker" />
-          <Tab label="Database" />
-          <Tab label="Settings" />
-        </Tabs>
-      </Box>
-      {tab === 0 && (
-        <>
+    <ThemeProvider theme={theme}>
+      <Box sx={theme => ({ minHeight: '100vh', backgroundColor: theme.palette.background.default })}>
+        <Container maxWidth="xs">
           <Box mb={2}>
-            <Paper elevation={2}>
-              <Box p={2}>
-                <Typography variant="h6" gutterBottom>Goal</Typography>
-                <Box mt={2}>
-                  <Box mt={1} mb={1}>
-                    <Box display="flex" justifyContent="space-between" mb={0.5}>
-                      <Typography variant="caption" color="text.secondary">
-                        Consumed: {totalKcal} kcal
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Remaining: {Math.max(0, dailyLimit - totalKcal)} kcal
-                      </Typography>
-                    </Box>
-                    <BorderLinearProgress
-                      variant="determinate"
-                      value={progress}
-                      color={overLimit ? 'error' : 'primary'}
-                    />
-                  </Box>
-                </Box>
-              </Box>
-            </Paper>
+            <Tabs
+              value={tab}
+              onChange={(_, v) => setTab(v)}
+              variant="fullWidth"
+              sx={theme => ({
+                backgroundColor: theme.palette.background.paper,
+                color: theme.palette.text.primary,
+                borderRadius: 2,
+                minHeight: '48px',
+              })}
+            >
+              <Tab
+                label="Tracker"
+                sx={theme => ({
+                  color: theme.palette.text.primary,
+                  minHeight: '48px',
+                })}
+              />
+              <Tab
+                label="Database"
+                sx={theme => ({
+                  color: theme.palette.text.primary,
+                  minHeight: '48px',
+                })}
+              />
+              <Tab
+                label="Settings"
+                sx={theme => ({
+                  color: theme.palette.text.primary,
+                  minHeight: '48px',
+                })}
+              />
+            </Tabs>
           </Box>
-          <Box mb={2}>
-            <Paper elevation={2}>
-              <Box p={2}>
-                <Typography variant="h6" gutterBottom>Entries</Typography>
-                <Box display="flex" flexDirection="column" gap={1} mb={2}>
-                  <FormControl fullWidth size="small" sx={{ mb: 1 }}>
-                    <InputLabel id="food-select-label">Select food</InputLabel>
-                    <Select
-                      labelId="food-select-label"
-                      value={entryFoodId}
-                      label="Select food"
-                      onChange={e => setEntryFoodId(e.target.value)}
-                      fullWidth
-                      sx={{
-                        '& .MuiSelect-select': {
-                          height: '40px',
-                          boxSizing: 'border-box',
-                          display: 'flex',
-                          alignItems: 'center'
-                        }
-                      }}
-                    >
-                      <MenuItem value="">Select food</MenuItem>
-                      {sortedFoodDb.map(f => (
-                        <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <Box display="flex" gap={1}>
+          {tab === 0 && (
+            <>
+              <Box mb={2}>
+                <Paper elevation={2}>
+                  <Box p={2}>
+                    <Typography variant="h6" gutterBottom>Goal</Typography>
+                    <Box mt={2}>
+                      <Box mt={1} mb={1}>
+                        <Box display="flex" justifyContent="space-between" mb={0.5}>
+                          <Typography variant="caption" color="text.secondary">
+                            Consumed: {totalKcal} kcal
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Remaining: {Math.max(0, dailyLimit - totalKcal)} kcal
+                          </Typography>
+                        </Box>
+                        <BorderLinearProgress
+                          variant="determinate"
+                          value={progress}
+                          color={overLimit ? 'error' : 'primary'}
+                        />
+                      </Box>
+                    </Box>
+                  </Box>
+                </Paper>
+              </Box>
+              <Box mb={2}>
+                <Paper elevation={2}>
+                  <Box p={2}>
+                    <Typography variant="h6" gutterBottom>Entries</Typography>
+                    <Box display="flex" flexDirection="column" gap={1} mb={2}>
+                      <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+                        <InputLabel id="food-select-label">Select food</InputLabel>
+                        <Select
+                          labelId="food-select-label"
+                          value={entryFoodId}
+                          label="Select food"
+                          onChange={e => setEntryFoodId(e.target.value)}
+                          fullWidth
+                          sx={{
+                            '& .MuiSelect-select': {
+                              height: '40px',
+                              boxSizing: 'border-box',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }
+                          }}
+                        >
+                          <MenuItem value="">Select food</MenuItem>
+                          {sortedFoodDb.map(f => (
+                            <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Box display="flex" gap={1}>
+                        <TextField
+                          label="grams"
+                          type="number"
+                          value={entryGrams}
+                          onChange={e => setEntryGrams(e.target.value)}
+                          inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                          size="small"
+                          sx={{
+                            '& .MuiInputBase-root': {
+                              height: '40px',
+                              display: 'flex',
+                              alignItems: 'center'
+                            },
+                            flex: 1
+                          }}
+                        />
+                        <Button
+                          variant="contained"
+                          onClick={addEntryFromDb}
+                          size="small"
+                          sx={{
+                            height: '40px',
+                            minWidth: '80px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          Add
+                        </Button>
+                      </Box>
+                    </Box>
+                    {entries.length > 0 ? (
+                      <List dense sx={{ minHeight: '60px' }}>
+                        {entries.map(e => (
+                          <ListItem
+                            key={e.id}
+                            disablePadding
+                            secondaryAction={
+                              <>
+                                <IconButton edge="end" aria-label="edit" onClick={() => {
+                                  setEntryFoodId(e.foodId ?? '');
+                                  setEntryGrams(e.grams?.toString() ?? '');
+                                  removeEntry(e.id);
+                                }} size="small">
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton edge="end" aria-label="delete" onClick={() => removeEntry(e.id)} size="small">
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </>
+                            }
+                          >
+                            <ListItemText
+                              primaryTypographyProps={{ variant: 'body2' }}
+                              primary={`${e.name}${e.grams ? ` (${e.grams}g)` : ''}: ${e.kcal} kcal`}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" align="center" py={1}>
+                        No entries yet
+                      </Typography>
+                    )}
+                    {entries.length > 0 && (
+                      <Box display="flex" justifyContent="center" mt={2}>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          onClick={resetEntries}
+                          size="small"
+                          sx={{ height: '40px' }}
+                        >
+                          Remove all entries
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                </Paper>
+              </Box>
+            </>
+          )}
+          {tab === 1 && (
+            <Box mb={2}>
+              <Paper elevation={2}>
+                <Box p={2}>
+                  <Typography variant="h6" gutterBottom>Food Database</Typography>
+                  <Box display="flex" flexDirection="column" gap={1} mb={2}>
                     <TextField
-                      label="grams"
-                      type="number"
-                      value={entryGrams}
-                      onChange={e => setEntryGrams(e.target.value)}
-                      inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                      label="Food name"
+                      value={foodName}
+                      onChange={e => setFoodName(e.target.value)}
                       size="small"
+                      fullWidth
                       sx={{
                         '& .MuiInputBase-root': {
                           height: '40px',
                           display: 'flex',
                           alignItems: 'center'
                         },
-                        flex: 1
+                        mb: 1
                       }}
                     />
+                    <Box display="flex" gap={1}>
+                      <TextField
+                        label="kcal/100g"
+                        type="number"
+                        value={foodKcal}
+                        onChange={e => setFoodKcal(e.target.value)}
+                        inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                        size="small"
+                        sx={{
+                          '& .MuiInputBase-root': {
+                            height: '40px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          },
+                          flex: 1
+                        }}
+                      />
+                      <Button
+                        variant="contained"
+                        onClick={addFood}
+                        size="small"
+                        sx={{
+                          height: '40px',
+                          minWidth: '80px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </Box>
+                  </Box>
+                  <List dense>
+                    {sortedFoodDb.map(f => (
+                      <ListItem key={f.id} secondaryAction={
+                        <>
+                          <IconButton edge="end" aria-label="edit" onClick={() => {
+                            setFoodName(f.name);
+                            setFoodKcal(f.kcalPer100g.toString());
+                            removeFood(f.id);
+                          }} size="small">
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton edge="end" aria-label="delete" onClick={() => removeFood(f.id)} size="small">
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      }>
+                        <ListItemText primary={`${f.name} (${f.kcalPer100g} kcal/100g)`} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  <Box display="flex" gap={1} mt={2}>
                     <Button
                       variant="contained"
-                      onClick={addEntryFromDb}
+                      onClick={exportFoodDb}
                       size="small"
                       sx={{
                         height: '40px',
-                        minWidth: '80px',
+                        flex: 1,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
                       }}
                     >
-                      Add
+                      Export
                     </Button>
-                  </Box>
-                </Box>
-                {entries.length > 0 ? (
-                  <List dense sx={{ minHeight: '60px' }}>
-                    {entries.map(e => (
-                      <ListItem
-                        key={e.id}
-                        disablePadding
-                        secondaryAction={
-                          <>
-                            <IconButton edge="end" aria-label="edit" onClick={() => {
-                              setEntryFoodId(e.foodId ?? '');
-                              setEntryGrams(e.grams?.toString() ?? '');
-                              removeEntry(e.id);
-                            }} size="small">
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton edge="end" aria-label="delete" onClick={() => removeEntry(e.id)} size="small">
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </>
-                        }
-                      >
-                        <ListItemText
-                          primaryTypographyProps={{ variant: 'body2' }}
-                          primary={`${e.name}${e.grams ? ` (${e.grams}g)` : ''}: ${e.kcal} kcal`}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                ) : (
-                  <Typography variant="body2" color="text.secondary" align="center" py={1}>
-                    No entries yet
-                  </Typography>
-                )}
-                {entries.length > 0 && (
-                  <Box display="flex" justifyContent="center" mt={2}>
                     <Button
-                      variant="outlined"
-                      color="error"
-                      onClick={resetEntries}
+                      variant="contained"
+                      component="label"
                       size="small"
-                      sx={{ height: '40px' }}
+                      sx={{
+                        height: '40px',
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
                     >
-                      Remove all entries
+                      Import
+                      <input type="file" accept="application/json" hidden onChange={importFoodDb} />
                     </Button>
                   </Box>
-                )}
-              </Box>
-            </Paper>
-          </Box>
-        </>
-      )}
-      {tab === 1 && (
-        <Box mb={2}>
-          <Paper elevation={2}>
-            <Box p={2}>
-              <Typography variant="h6" gutterBottom>Food Database</Typography>
-              <Box display="flex" flexDirection="column" gap={1} mb={2}>
-                <TextField
-                  label="Food name"
-                  value={foodName}
-                  onChange={e => setFoodName(e.target.value)}
-                  size="small"
-                  fullWidth
-                  sx={{
-                    '& .MuiInputBase-root': {
-                      height: '40px',
-                      display: 'flex',
-                      alignItems: 'center'
-                    },
-                    mb: 1
-                  }}
-                />
-                <Box display="flex" gap={1}>
-                  <TextField
-                    label="kcal/100g"
-                    type="number"
-                    value={foodKcal}
-                    onChange={e => setFoodKcal(e.target.value)}
-                    inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-                    size="small"
-                    sx={{
-                      '& .MuiInputBase-root': {
-                        height: '40px',
-                        display: 'flex',
-                        alignItems: 'center'
-                      },
-                      flex: 1
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={addFood}
-                    size="small"
-                    sx={{
-                      height: '40px',
-                      minWidth: '80px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    Add
-                  </Button>
                 </Box>
-              </Box>
-              <List dense>
-                {sortedFoodDb.map(f => (
-                  <ListItem key={f.id} secondaryAction={
-                    <>
-                      <IconButton edge="end" aria-label="edit" onClick={() => {
-                        setFoodName(f.name);
-                        setFoodKcal(f.kcalPer100g.toString());
-                        removeFood(f.id);
-                      }} size="small">
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton edge="end" aria-label="delete" onClick={() => removeFood(f.id)} size="small">
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </>
-                  }>
-                    <ListItemText primary={`${f.name} (${f.kcalPer100g} kcal/100g)`} />
-                  </ListItem>
-                ))}
-              </List>
-              <Box display="flex" gap={1} mt={2}>
-                <Button
-                  variant="contained"
-                  onClick={exportFoodDb}
-                  size="small"
-                  sx={{
-                    height: '40px',
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  Export
-                </Button>
-                <Button
-                  variant="contained"
-                  component="label"
-                  size="small"
-                  sx={{
-                    height: '40px',
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  Import
-                  <input type="file" accept="application/json" hidden onChange={importFoodDb} />
-                </Button>
-              </Box>
+              </Paper>
             </Box>
-          </Paper>
-        </Box>
-      )}
-      {tab === 2 && (
-        <Box mb={2}>
-          <Paper elevation={2}>
-            <Box p={2}>
-              <Typography variant="h6" gutterBottom>Settings</Typography>
-              <TextField
-                label="Daily Goal (kcal)"
-                type="number"
-                value={dailyLimit}
-                onChange={e => setDailyLimit(Number(e.target.value))}
-                inputProps={{ min: 0, inputMode: 'numeric', pattern: '[0-9]*' }}
-                size="small"
-                fullWidth
-                sx={{ '& .MuiInputBase-root': { height: '40px' }, mt: 1 }}
-              />
+          )}
+          {tab === 2 && (
+            <Box mb={2}>
+              <Paper elevation={2}>
+                <Box p={2}>
+                  <Typography variant="h6" gutterBottom>Settings</Typography>
+                  <Box display="flex" flexDirection="column" gap={2} mt={1}>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <Typography flex={1} variant="body1" align="left">Daily Goal (kcal)</Typography>
+                      <TextField
+                        type="number"
+                        value={dailyLimit}
+                        onChange={e => setDailyLimit(Number(e.target.value))}
+                        inputProps={{ min: 0, inputMode: 'numeric', pattern: '[0-9]*' }}
+                        size="small"
+                        sx={{ width: '120px', '& .MuiInputBase-root': { height: '40px' } }}
+                      />
+                    </Box>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <Typography flex={1} variant="body1" align="left">Dark mode</Typography>
+                      <Switch
+                        checked={mode === 'dark'}
+                        onChange={(_, checked) => setMode(checked ? 'dark' : 'light')}
+                        color="primary"
+                      />
+                    </Box>
+                  </Box>
+                </Box>
+              </Paper>
             </Box>
-          </Paper>
-        </Box>
-      )}
-    </Container>
+          )}
+        </Container>
+      </Box>
+    </ThemeProvider>
   );
 }
 
