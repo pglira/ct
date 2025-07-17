@@ -149,15 +149,23 @@ function App() {
         <Paper elevation={2}>
           <Box p={2}>
             <Typography variant="h6" gutterBottom>Add Entry</Typography>
-            <Box display="flex" gap={1} alignItems="flex-end">
-              <FormControl sx={{ minWidth: 0, flex: 2 }} size="small">
+            <Box display="flex" flexDirection="column" gap={1}>
+              <FormControl fullWidth size="small" sx={{ mb: 1 }}>
                 <InputLabel id="food-select-label">Select food</InputLabel>
                 <Select
                   labelId="food-select-label"
                   value={entryFoodId}
                   label="Select food"
                   onChange={e => setEntryFoodId(e.target.value)}
-                  sx={{ '& .MuiSelect-select': { height: '40px', boxSizing: 'border-box' } }}
+                  fullWidth
+                  sx={{ 
+                    '& .MuiSelect-select': { 
+                      height: '40px', 
+                      boxSizing: 'border-box',
+                      display: 'flex',
+                      alignItems: 'center'
+                    } 
+                  }}
                 >
                   <MenuItem value="">Select food</MenuItem>
                   {sortedFoodDb.map(f => (
@@ -165,23 +173,38 @@ function App() {
                   ))}
                 </Select>
               </FormControl>
-              <TextField
-                label="grams"
-                type="number"
-                value={entryGrams}
-                onChange={e => setEntryGrams(e.target.value)}
-                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-                size="small"
-                sx={{ '& .MuiInputBase-root': { height: '40px' }, flex: 1 }}
-              />
-              <Button 
-                variant="contained" 
-                onClick={addEntryFromDb} 
-                size="small" 
-                sx={{ height: '40px', flex: 0, minWidth: '80px' }}
-              >
-                Add
-              </Button>
+              <Box display="flex" gap={1}>
+                <TextField
+                  label="grams"
+                  type="number"
+                  value={entryGrams}
+                  onChange={e => setEntryGrams(e.target.value)}
+                  inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                  size="small"
+                  sx={{ 
+                    '& .MuiInputBase-root': { 
+                      height: '40px',
+                      display: 'flex',
+                      alignItems: 'center'
+                    },
+                    flex: 1
+                  }}
+                />
+                <Button 
+                  variant="contained" 
+                  onClick={addEntryFromDb} 
+                  size="small" 
+                  sx={{ 
+                    height: '40px',
+                    minWidth: '80px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  Add
+                </Button>
+              </Box>
             </Box>
           </Box>
         </Paper>
@@ -260,52 +283,54 @@ function App() {
         <Paper elevation={2}>
           <Box p={2}>
             <Typography variant="h6" gutterBottom>Food Database</Typography>
-            <Box display="flex" gap={1} alignItems="flex-end">
+            <Box display="flex" flexDirection="column" gap={1}>
               <TextField
                 label="Food name"
                 value={foodName}
                 onChange={e => setFoodName(e.target.value)}
                 size="small"
+                fullWidth
                 sx={{ 
-                  flex: 2,
                   '& .MuiInputBase-root': { 
                     height: '40px',
                     display: 'flex',
                     alignItems: 'center'
-                  } 
+                  },
+                  mb: 1
                 }}
               />
-              <TextField
-                label="kcal/100g"
-                type="number"
-                value={foodKcal}
-                onChange={e => setFoodKcal(e.target.value)}
-                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-                size="small"
-                sx={{ 
-                  flex: 1,
-                  '& .MuiInputBase-root': { 
+              <Box display="flex" gap={1}>
+                <TextField
+                  label="kcal/100g"
+                  type="number"
+                  value={foodKcal}
+                  onChange={e => setFoodKcal(e.target.value)}
+                  inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                  size="small"
+                  sx={{ 
+                    '& .MuiInputBase-root': { 
+                      height: '40px',
+                      display: 'flex',
+                      alignItems: 'center'
+                    },
+                    flex: 1
+                  }}
+                />
+                <Button 
+                  variant="contained" 
+                  onClick={addFood} 
+                  size="small" 
+                  sx={{ 
                     height: '40px',
+                    minWidth: '80px',
                     display: 'flex',
-                    alignItems: 'center'
-                  } 
-                }}
-              />
-              <Button 
-                variant="contained" 
-                onClick={addFood} 
-                size="small" 
-                sx={{ 
-                  height: '40px', 
-                  flex: 0, 
-                  minWidth: '80px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                Add
-              </Button>
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  Add
+                </Button>
+              </Box>
             </Box>
             <List dense>
               {sortedFoodDb.map(f => (
