@@ -101,7 +101,7 @@ function App() {
     <div className="container">
       <section>
         <h2>Daily Goal</h2>
-        <input type="number" value={dailyLimit} min={0} onChange={e => setDailyLimit(Number(e.target.value))} />
+        <input type="number" inputMode="numeric" pattern="[0-9]*" value={dailyLimit} min={0} onChange={e => setDailyLimit(Number(e.target.value))} />
       </section>
       <section>
         <h2>Add Entry</h2>
@@ -112,8 +112,8 @@ function App() {
               <option key={f.id} value={f.id}>{f.name}</option>
             ))}
           </select>
-          <input placeholder="grams" type="number" value={entryGrams} onChange={e => setEntryGrams(e.target.value)} />
-          <button onClick={addEntryFromDb}>Add from DB</button>
+          <input placeholder="grams" type="number" inputMode="numeric" pattern="[0-9]*" value={entryGrams} onChange={e => setEntryGrams(e.target.value)} />
+          <button onClick={addEntryFromDb}>Add</button>
         </div>
       </section>
       <section>
@@ -139,13 +139,22 @@ function App() {
           <div style={{ fontSize: '0.92em', color: '#000', marginTop: '0.1em' }}>
             (Remaining: {Math.max(0, dailyLimit - totalKcal)} kcal)
           </div>
+          <div style={{ marginTop: '0.3em', width: '100%', height: '14px', background: '#e0e0e0', borderRadius: '7px', overflow: 'hidden', boxShadow: 'inset 0 1px 2px #0001' }}>
+            <div style={{
+              width: `${Math.min(100, (totalKcal / dailyLimit) * 100)}%`,
+              height: '100%',
+              background: overLimit ? 'var(--danger)' : 'var(--primary)',
+              transition: 'width 0.3s',
+              borderRadius: '7px 0 0 7px',
+            }} />
+          </div>
         </div>
       </section>
       <section>
         <h2>Food Database</h2>
         <div className="food-form">
           <input placeholder="Food name" value={foodName} onChange={e => setFoodName(e.target.value)} />
-          <input placeholder="kcal/100g" type="number" value={foodKcal} onChange={e => setFoodKcal(e.target.value)} />
+          <input placeholder="kcal/100g" type="number" inputMode="numeric" pattern="[0-9]*" value={foodKcal} onChange={e => setFoodKcal(e.target.value)} />
           <button onClick={addFood}>Add</button>
         </div>
         <ul>
