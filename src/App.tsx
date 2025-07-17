@@ -113,6 +113,40 @@ function App() {
     setEntries([]);
   }
 
+  // Export foodDb as JSON file
+  function exportFoodDb() {
+    const dataStr = JSON.stringify(foodDb, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'foodDb.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Import foodDb from JSON file
+  function importFoodDb(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (Array.isArray(json) && json.every(f => typeof f.id === 'string' && typeof f.name === 'string' && typeof f.kcalPer100g === 'number')) {
+          setFoodDb(json);
+        } else {
+          alert('Invalid file format.');
+        }
+      } catch {
+        alert('Could not parse file.');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input value so the same file can be selected again
+    e.target.value = '';
+  }
+
   // Sort foodDb alphabetically by name for display
   const sortedFoodDb: Food[] = [...foodDb].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -123,7 +157,7 @@ function App() {
 
   // Custom progress bar
   const BorderLinearProgress = styled(LinearProgress)(({ theme }) => ({
-    height: 10,
+    height: 18,
     borderRadius: 5,
     backgroundColor: theme.palette.grey[200],
     '& .MuiLinearProgress-bar': {
@@ -138,6 +172,7 @@ function App() {
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="fullWidth">
           <Tab label="Tracker" />
           <Tab label="Database" />
+          <Tab label="Settings" />
         </Tabs>
       </Box>
       {tab === 0 && (
@@ -145,31 +180,12 @@ function App() {
           <Box mb={2}>
             <Paper elevation={2}>
               <Box p={2}>
-                <Typography variant="h6" gutterBottom>Daily Goal</Typography>
-                <TextField
-                  label="kcal"
-                  type="number"
-                  value={dailyLimit}
-                  onChange={e => setDailyLimit(Number(e.target.value))}
-                  inputProps={{ min: 0, inputMode: 'numeric', pattern: '[0-9]*' }}
-                  size="small"
-                  fullWidth
-                  sx={{ '& .MuiInputBase-root': { height: '40px' } }}
-                />
+                <Typography variant="h6" gutterBottom>Goal</Typography>
                 <Box mt={2}>
-                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                    <Typography variant="subtitle2" fontWeight={600}>
-                      Daily Total
-                    </Typography>
-                    <Typography fontWeight={700} color={overLimit ? 'error.main' : 'text.primary'}>
-                      {totalKcal} / {dailyLimit} kcal
-                      {overLimit && <span> (Over limit!)</span>}
-                    </Typography>
-                  </Box>
                   <Box mt={1} mb={1}>
                     <Box display="flex" justifyContent="space-between" mb={0.5}>
                       <Typography variant="caption" color="text.secondary">
-                        Consumed
+                        Consumed: {totalKcal} kcal
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         Remaining: {Math.max(0, dailyLimit - totalKcal)} kcal
@@ -302,7 +318,7 @@ function App() {
           <Paper elevation={2}>
             <Box p={2}>
               <Typography variant="h6" gutterBottom>Food Database</Typography>
-              <Box display="flex" flexDirection="column" gap={1}>
+              <Box display="flex" flexDirection="column" gap={1} mb={2}>
                 <TextField
                   label="Food name"
                   value={foodName}
@@ -371,6 +387,56 @@ function App() {
                   </ListItem>
                 ))}
               </List>
+              <Box display="flex" gap={1} mt={2}>
+                <Button
+                  variant="contained"
+                  onClick={exportFoodDb}
+                  size="small"
+                  sx={{
+                    height: '40px',
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  Export
+                </Button>
+                <Button
+                  variant="contained"
+                  component="label"
+                  size="small"
+                  sx={{
+                    height: '40px',
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  Import
+                  <input type="file" accept="application/json" hidden onChange={importFoodDb} />
+                </Button>
+              </Box>
+            </Box>
+          </Paper>
+        </Box>
+      )}
+      {tab === 2 && (
+        <Box mb={2}>
+          <Paper elevation={2}>
+            <Box p={2}>
+              <Typography variant="h6" gutterBottom>Settings</Typography>
+              <TextField
+                label="Daily Goal (kcal)"
+                type="number"
+                value={dailyLimit}
+                onChange={e => setDailyLimit(Number(e.target.value))}
+                inputProps={{ min: 0, inputMode: 'numeric', pattern: '[0-9]*' }}
+                size="small"
+                fullWidth
+                sx={{ '& .MuiInputBase-root': { height: '40px' }, mt: 1 }}
+              />
             </Box>
           </Paper>
         </Box>
