@@ -69,44 +69,52 @@ body {
 
 .container {
   max-width: 420px;
-  margin: 2rem auto;
+  margin: 0.3rem auto;
+  padding: 0.3rem 0.2rem 0.2rem 0.2rem;
+  gap: 0.3rem;
   background: var(--card);
-  border-radius: 18px;
-  box-shadow: 0 4px 24px #0004;
-  padding: 2rem 1.5rem 1.5rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #0002;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
   transition: background 0.3s;
 }
 
 h1 {
-  font-size: 2.2rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: var(--primary-dark);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
   letter-spacing: -1px;
 }
 
 section {
   background: var(--section);
-  border-radius: 12px;
-  padding: 1rem 1rem 0.5rem 1rem;
-  margin-bottom: 0.5rem;
-  box-shadow: 0 1px 4px #0002;
+  border-radius: 8px;
+  padding: 0.15rem 0.5rem 0.05rem 0.5rem;
+  margin-bottom: 0.08rem;
+  margin-top: 0.05rem;
+  box-shadow: 0 1px 4px #0001;
   transition: background 0.3s;
 }
 
 label, h2 {
   font-weight: 600;
   color: var(--primary-dark);
+  margin-bottom: 0.2rem;
+}
+
+h2 {
+  font-size: 1.05rem;
+  margin-bottom: 0.08rem;
+  margin-top: 0.02rem;
 }
 
 input, select, button {
-  font-size: 1rem;
-  margin: 0.25rem 0.3rem 0.25rem 0;
-  padding: 0.5rem 0.7rem;
-  border-radius: 6px;
+  font-size: 0.85rem;
+  margin: 0.07rem 0.1rem 0.07rem 0;
+  padding: 0.18rem 0.3rem;
+  border-radius: 4px;
   border: 1px solid var(--input-border);
   outline: none;
   background: var(--input);
@@ -133,32 +141,32 @@ button:hover {
 .food-form, .entry-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0.13rem;
+  margin-bottom: 0.08rem;
   align-items: center;
 }
 
 ul {
   list-style: none;
   padding: 0;
-  margin: 0.5rem 0 0 0;
+  margin: 0.08rem 0 0 0;
 }
 li {
-  margin: 0.5rem 0;
-  padding: 0.5rem 0.7rem;
+  margin: 0.08rem 0;
+  padding: 0.13rem 0.3rem;
+  font-size: 0.87rem;
   background: var(--bg-light);
-  border-radius: 6px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 1.05rem;
   color: var(--text);
   transition: background 0.3s, color 0.3s;
 }
 li button {
-  margin-left: 0.7rem;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.95rem;
+  margin-left: 0.2rem;
+  padding: 0.08rem 0.2rem;
+  font-size: 0.82rem;
   border-radius: 4px;
   box-shadow: none;
 }
@@ -174,12 +182,12 @@ li button {
     margin: 0;
     border-radius: 0;
     box-shadow: none;
-    padding: 1rem 0.2rem;
+    padding: 0.5rem 0.1rem;
   }
   section {
-    padding: 0.7rem 0.3rem 0.3rem 0.3rem;
+    padding: 0.4rem 0.1rem 0.2rem 0.1rem;
   }
   h1 {
-    font-size: 1.5rem;
+    font-size: 1.1rem;
   }
 }

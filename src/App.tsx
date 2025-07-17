@@ -97,6 +97,9 @@ function App() {
   function removeEntry(id: string): void {
     setEntries(entries.filter(e => e.id !== id));
   }
+  function resetEntries(): void {
+    setEntries([]);
+  }
 
   // Sort foodDb alphabetically by name for display
   const sortedFoodDb: Food[] = [...foodDb].sort((a, b) => a.name.localeCompare(b.name));
@@ -107,9 +110,8 @@ function App() {
 
   return (
     <div className="container">
-      <h1>Calorie Tracker</h1>
       <section>
-        <label>Daily Limit (kcal): </label>
+        <h2>Daily Goal</h2>
         <input type="number" value={dailyLimit} min={0} onChange={e => setDailyLimit(Number(e.target.value))} />
       </section>
       <section>
@@ -156,6 +158,13 @@ function App() {
             </li>
           ))}
         </ul>
+        {entries.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '1rem 0 0.5rem 0' }}>
+            <button onClick={resetEntries}>
+              Remove all
+            </button>
+          </div>
+        )}
         <div className={overLimit ? 'over' : ''}>
           <strong>Total: {totalKcal} / {dailyLimit} kcal</strong>
           {overLimit && <span> (Over limit!)</span>}
