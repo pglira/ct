@@ -21,7 +21,6 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import './App.css';
 import Switch from '@mui/material/Switch';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 // Types
