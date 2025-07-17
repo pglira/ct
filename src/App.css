@@ -236,6 +236,16 @@ li button {
   font-weight: 700;
 }
 
+/* Hide number input spin buttons and browser default frame */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 @media (max-width: 600px) {
   #root {
     padding: 0;

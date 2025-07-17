@@ -14,8 +14,11 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import LinearProgress from '@mui/material/LinearProgress';
 import { styled } from '@mui/material/styles';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import './App.css';
 
 // Types
@@ -62,6 +65,9 @@ function App() {
   const [foodKcal, setFoodKcal] = useState<string>('');
   const [entryFoodId, setEntryFoodId] = useState<string>('');
   const [entryGrams, setEntryGrams] = useState<string>('');
+  const [tab, setTab] = useState(0);
+  // Remove editId, editName, editKcal state and handlers
+
   // Effects: persist state
   useEffect(() => { save('dailyLimit', dailyLimit); }, [dailyLimit]);
   useEffect(() => { save('foodDb', foodDb); }, [foodDb]);
@@ -129,223 +135,244 @@ function App() {
   return (
     <Container maxWidth="xs">
       <Box mb={2}>
-        <Paper elevation={2}>
-          <Box p={2}>
-            <Typography variant="h6" gutterBottom>Daily Goal</Typography>
-            <TextField
-              label="kcal"
-              type="number"
-              value={dailyLimit}
-              onChange={e => setDailyLimit(Number(e.target.value))}
-              inputProps={{ min: 0, inputMode: 'numeric', pattern: '[0-9]*' }}
-              size="small"
-              fullWidth
-              sx={{ '& .MuiInputBase-root': { height: '40px' } }}
-            />
-          </Box>
-        </Paper>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="fullWidth">
+          <Tab label="Tracker" />
+          <Tab label="Database" />
+        </Tabs>
       </Box>
-      <Box mb={2}>
-        <Paper elevation={2}>
-          <Box p={2}>
-            <Typography variant="h6" gutterBottom>Add Entry</Typography>
-            <Box display="flex" flexDirection="column" gap={1}>
-              <FormControl fullWidth size="small" sx={{ mb: 1 }}>
-                <InputLabel id="food-select-label">Select food</InputLabel>
-                <Select
-                  labelId="food-select-label"
-                  value={entryFoodId}
-                  label="Select food"
-                  onChange={e => setEntryFoodId(e.target.value)}
-                  fullWidth
-                  sx={{ 
-                    '& .MuiSelect-select': { 
-                      height: '40px', 
-                      boxSizing: 'border-box',
-                      display: 'flex',
-                      alignItems: 'center'
-                    } 
-                  }}
-                >
-                  <MenuItem value="">Select food</MenuItem>
-                  {sortedFoodDb.map(f => (
-                    <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Box display="flex" gap={1}>
+      {tab === 0 && (
+        <>
+          <Box mb={2}>
+            <Paper elevation={2}>
+              <Box p={2}>
+                <Typography variant="h6" gutterBottom>Daily Goal</Typography>
                 <TextField
-                  label="grams"
+                  label="kcal"
                   type="number"
-                  value={entryGrams}
-                  onChange={e => setEntryGrams(e.target.value)}
-                  inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                  value={dailyLimit}
+                  onChange={e => setDailyLimit(Number(e.target.value))}
+                  inputProps={{ min: 0, inputMode: 'numeric', pattern: '[0-9]*' }}
                   size="small"
+                  fullWidth
+                  sx={{ '& .MuiInputBase-root': { height: '40px' } }}
+                />
+              </Box>
+            </Paper>
+          </Box>
+          <Box mb={2}>
+            <Paper elevation={2}>
+              <Box p={2}>
+                <Typography variant="h6" gutterBottom>Add Entry</Typography>
+                <Box display="flex" flexDirection="column" gap={1}>
+                  <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+                    <InputLabel id="food-select-label">Select food</InputLabel>
+                    <Select
+                      labelId="food-select-label"
+                      value={entryFoodId}
+                      label="Select food"
+                      onChange={e => setEntryFoodId(e.target.value)}
+                      fullWidth
+                      sx={{ 
+                        '& .MuiSelect-select': { 
+                          height: '40px', 
+                          boxSizing: 'border-box',
+                          display: 'flex',
+                          alignItems: 'center'
+                        } 
+                      }}
+                    >
+                      <MenuItem value="">Select food</MenuItem>
+                      {sortedFoodDb.map(f => (
+                        <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <Box display="flex" gap={1}>
+                    <TextField
+                      label="grams"
+                      type="number"
+                      value={entryGrams}
+                      onChange={e => setEntryGrams(e.target.value)}
+                      inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                      size="small"
+                      sx={{ 
+                        '& .MuiInputBase-root': { 
+                          height: '40px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        },
+                        flex: 1
+                      }}
+                    />
+                    <Button 
+                      variant="contained" 
+                      onClick={addEntryFromDb} 
+                      size="small" 
+                      sx={{ 
+                        height: '40px',
+                        minWidth: '80px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+                </Box>
+              </Box>
+            </Paper>
+          </Box>
+          <Box mb={2}>
+            <Paper elevation={2}>
+              <Box p={2}>
+                <Typography variant="h6" gutterBottom>Today’s Entries</Typography>
+                {entries.length > 0 ? (
+                  <List dense sx={{ minHeight: '60px' }}>
+                    {entries.map(e => (
+                      <ListItem 
+                        key={e.id}
+                        disablePadding
+                        secondaryAction={
+                          <IconButton edge="end" aria-label="delete" onClick={() => removeEntry(e.id)} size="small">
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        }
+                      >
+                        <ListItemText
+                          primaryTypographyProps={{ variant: 'body2' }}
+                          primary={`${e.name}${e.grams ? ` (${e.grams}g)` : ''}: ${e.kcal} kcal`}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" align="center" py={1}>
+                    No entries yet
+                  </Typography>
+                )}
+                <Box mt={1}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+                    <Typography variant="subtitle2" fontWeight={600}>
+                      Daily Total
+                    </Typography>
+                    <Typography fontWeight={700} color={overLimit ? 'error.main' : 'text.primary'}>
+                      {totalKcal} / {dailyLimit} kcal
+                      {overLimit && <span> (Over limit!)</span>}
+                    </Typography>
+                  </Box>
+                  <Box mt={1} mb={1}>
+                    <Box display="flex" justifyContent="space-between" mb={0.5}>
+                      <Typography variant="caption" color="text.secondary">
+                        Consumed
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Remaining: {Math.max(0, dailyLimit - totalKcal)} kcal
+                      </Typography>
+                    </Box>
+                    <BorderLinearProgress 
+                      variant="determinate" 
+                      value={progress} 
+                      color={overLimit ? 'error' : 'primary'}
+                    />
+                  </Box>
+                  {entries.length > 0 && (
+                    <Box display="flex" justifyContent="center" mt={2}>
+                      <Button 
+                        variant="outlined" 
+                        color="error" 
+                        onClick={resetEntries}
+                        size="small"
+                        sx={{ height: '40px' }}
+                      >
+                        Remove all entries
+                      </Button>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            </Paper>
+          </Box>
+        </>
+      )}
+      {tab === 1 && (
+        <Box mb={2}>
+          <Paper elevation={2}>
+            <Box p={2}>
+              <Typography variant="h6" gutterBottom>Food Database</Typography>
+              <Box display="flex" flexDirection="column" gap={1}>
+                <TextField
+                  label="Food name"
+                  value={foodName}
+                  onChange={e => setFoodName(e.target.value)}
+                  size="small"
+                  fullWidth
                   sx={{ 
                     '& .MuiInputBase-root': { 
                       height: '40px',
                       display: 'flex',
                       alignItems: 'center'
                     },
-                    flex: 1
+                    mb: 1
                   }}
                 />
-                <Button 
-                  variant="contained" 
-                  onClick={addEntryFromDb} 
-                  size="small" 
-                  sx={{ 
-                    height: '40px',
-                    minWidth: '80px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  Add
-                </Button>
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
-      <Box mb={2}>
-        <Paper elevation={2}>
-          <Box p={2}>
-            <Typography variant="h6" gutterBottom>Today’s Entries</Typography>
-            {entries.length > 0 ? (
-              <List dense sx={{ minHeight: '60px' }}>
-                {entries.map(e => (
-                  <ListItem 
-                    key={e.id}
-                    disablePadding
-                    secondaryAction={
-                      <IconButton edge="end" aria-label="delete" onClick={() => removeEntry(e.id)} size="small">
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    }
+                <Box display="flex" gap={1}>
+                  <TextField
+                    label="kcal/100g"
+                    type="number"
+                    value={foodKcal}
+                    onChange={e => setFoodKcal(e.target.value)}
+                    inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                    size="small"
+                    sx={{ 
+                      '& .MuiInputBase-root': { 
+                        height: '40px',
+                        display: 'flex',
+                        alignItems: 'center'
+                      },
+                      flex: 1
+                    }}
+                  />
+                  <Button 
+                    variant="contained" 
+                    onClick={addFood} 
+                    size="small" 
+                    sx={{ 
+                      height: '40px',
+                      minWidth: '80px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
                   >
-                    <ListItemText
-                      primaryTypographyProps={{ variant: 'body2' }}
-                      primary={`${e.name}${e.grams ? ` (${e.grams}g)` : ''}: ${e.kcal} kcal`}
-                    />
+                    Add
+                  </Button>
+                </Box>
+              </Box>
+              <List dense>
+                {sortedFoodDb.map(f => (
+                  <ListItem key={f.id} secondaryAction={
+                    <>
+                      <IconButton edge="end" aria-label="edit" onClick={() => {
+                        setFoodName(f.name);
+                        setFoodKcal(f.kcalPer100g.toString());
+                        removeFood(f.id);
+                      }} size="small">
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton edge="end" aria-label="delete" onClick={() => removeFood(f.id)} size="small">
+                        <DeleteIcon />
+                      </IconButton>
+                    </>
+                  }>
+                    <ListItemText primary={`${f.name} (${f.kcalPer100g} kcal/100g)`} />
                   </ListItem>
                 ))}
               </List>
-            ) : (
-              <Typography variant="body2" color="text.secondary" align="center" py={1}>
-                No entries yet
-              </Typography>
-            )}
-            <Box mt={1}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                <Typography variant="subtitle2" fontWeight={600}>
-                  Daily Total
-                </Typography>
-                <Typography fontWeight={700} color={overLimit ? 'error.main' : 'text.primary'}>
-                  {totalKcal} / {dailyLimit} kcal
-                  {overLimit && <span> (Over limit!)</span>}
-                </Typography>
-              </Box>
-              <Box mt={1} mb={1}>
-                <Box display="flex" justifyContent="space-between" mb={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Consumed
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Remaining: {Math.max(0, dailyLimit - totalKcal)} kcal
-                  </Typography>
-                </Box>
-                <BorderLinearProgress 
-                  variant="determinate" 
-                  value={progress} 
-                  color={overLimit ? 'error' : 'primary'}
-                />
-              </Box>
-              {entries.length > 0 && (
-                <Box display="flex" justifyContent="center" mt={2}>
-                  <Button 
-                    variant="outlined" 
-                    color="error" 
-                    onClick={resetEntries}
-                    size="small"
-                    sx={{ height: '40px' }}
-                  >
-                    Remove all entries
-                  </Button>
-                </Box>
-              )}
             </Box>
-          </Box>
-        </Paper>
-      </Box>
-      <Box mb={2}>
-        <Paper elevation={2}>
-          <Box p={2}>
-            <Typography variant="h6" gutterBottom>Food Database</Typography>
-            <Box display="flex" flexDirection="column" gap={1}>
-              <TextField
-                label="Food name"
-                value={foodName}
-                onChange={e => setFoodName(e.target.value)}
-                size="small"
-                fullWidth
-                sx={{ 
-                  '& .MuiInputBase-root': { 
-                    height: '40px',
-                    display: 'flex',
-                    alignItems: 'center'
-                  },
-                  mb: 1
-                }}
-              />
-              <Box display="flex" gap={1}>
-                <TextField
-                  label="kcal/100g"
-                  type="number"
-                  value={foodKcal}
-                  onChange={e => setFoodKcal(e.target.value)}
-                  inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-                  size="small"
-                  sx={{ 
-                    '& .MuiInputBase-root': { 
-                      height: '40px',
-                      display: 'flex',
-                      alignItems: 'center'
-                    },
-                    flex: 1
-                  }}
-                />
-                <Button 
-                  variant="contained" 
-                  onClick={addFood} 
-                  size="small" 
-                  sx={{ 
-                    height: '40px',
-                    minWidth: '80px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  Add
-                </Button>
-              </Box>
-            </Box>
-            <List dense>
-              {sortedFoodDb.map(f => (
-                <ListItem key={f.id} secondaryAction={
-                  <IconButton edge="end" aria-label="delete" onClick={() => removeFood(f.id)}>
-                    <DeleteIcon />
-                  </IconButton>
-                }>
-                  <ListItemText primary={`${f.name} (${f.kcalPer100g} kcal/100g)`} />
-                </ListItem>
-              ))}
-            </List>
-          </Box>
-        </Paper>
-      </Box>
+          </Paper>
+        </Box>
+      )}
     </Container>
   );
 }
