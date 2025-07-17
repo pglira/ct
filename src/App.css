@@ -123,7 +123,7 @@ input, select, button {
 }
 
 input[type="number"], input[type="text"], select {
-  font-size: 16px;
+  font-size: 16px !important;
 }
 
 input:focus, select:focus {
