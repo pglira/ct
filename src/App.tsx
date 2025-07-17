@@ -45,8 +45,6 @@ function App() {
   const [foodKcal, setFoodKcal] = useState<string>('');
   const [entryFoodId, setEntryFoodId] = useState<string>('');
   const [entryGrams, setEntryGrams] = useState<string>('');
-  const [entryCustomKcal, setEntryCustomKcal] = useState<string>('');
-  const [entryCustomName, setEntryCustomName] = useState<string>('');
   // Effects: persist state
   useEffect(() => { save('dailyLimit', dailyLimit); }, [dailyLimit]);
   useEffect(() => { save('foodDb', foodDb); }, [foodDb]);
@@ -85,15 +83,6 @@ function App() {
     setEntryFoodId('');
     setEntryGrams('');
   }
-  function addEntryCustom(): void {
-    if (!entryCustomKcal.trim() || isNaN(Number(entryCustomKcal)) || !entryCustomName.trim()) return;
-    setEntries([
-      ...entries,
-      { id: crypto.randomUUID(), name: entryCustomName.trim(), kcal: Number(entryCustomKcal) },
-    ]);
-    setEntryCustomKcal('');
-    setEntryCustomName('');
-  }
   function removeEntry(id: string): void {
     setEntries(entries.filter(e => e.id !== id));
   }
@@ -115,22 +104,6 @@ function App() {
         <input type="number" value={dailyLimit} min={0} onChange={e => setDailyLimit(Number(e.target.value))} />
       </section>
       <section>
-        <h2>Food Database</h2>
-        <div className="food-form">
-          <input placeholder="Food name" value={foodName} onChange={e => setFoodName(e.target.value)} />
-          <input placeholder="kcal/100g" type="number" value={foodKcal} onChange={e => setFoodKcal(e.target.value)} />
-          <button onClick={addFood}>Add</button>
-        </div>
-        <ul>
-          {sortedFoodDb.map(f => (
-            <li key={f.id}>
-              {f.name} ({f.kcalPer100g} kcal/100g)
-              <button onClick={() => removeFood(f.id)}>Remove</button>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section>
         <h2>Add Entry</h2>
         <div className="entry-form">
           <select value={entryFoodId} onChange={e => setEntryFoodId(e.target.value)}>
@@ -141,11 +114,6 @@ function App() {
           </select>
           <input placeholder="grams" type="number" value={entryGrams} onChange={e => setEntryGrams(e.target.value)} />
           <button onClick={addEntryFromDb}>Add from DB</button>
-        </div>
-        <div className="entry-form">
-          <input placeholder="Custom name" value={entryCustomName} onChange={e => setEntryCustomName(e.target.value)} />
-          <input placeholder="Custom kcal" type="number" value={entryCustomKcal} onChange={e => setEntryCustomKcal(e.target.value)} />
-          <button onClick={addEntryCustom}>Add custom</button>
         </div>
       </section>
       <section>
@@ -168,7 +136,26 @@ function App() {
         <div className={overLimit ? 'over' : ''}>
           <strong>Total: {totalKcal} / {dailyLimit} kcal</strong>
           {overLimit && <span> (Over limit!)</span>}
+          <div style={{ fontSize: '0.92em', color: '#000', marginTop: '0.1em' }}>
+            (Remaining: {Math.max(0, dailyLimit - totalKcal)} kcal)
+          </div>
         </div>
+      </section>
+      <section>
+        <h2>Food Database</h2>
+        <div className="food-form">
+          <input placeholder="Food name" value={foodName} onChange={e => setFoodName(e.target.value)} />
+          <input placeholder="kcal/100g" type="number" value={foodKcal} onChange={e => setFoodKcal(e.target.value)} />
+          <button onClick={addFood}>Add</button>
+        </div>
+        <ul>
+          {sortedFoodDb.map(f => (
+            <li key={f.id}>
+              {f.name} ({f.kcalPer100g} kcal/100g)
+              <button onClick={() => removeFood(f.id)}>Remove</button>
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );
