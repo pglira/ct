@@ -171,10 +171,8 @@ function App() {
   // Custom progress bar
   const BorderLinearProgress = styled(LinearProgress)(({ theme }) => ({
     height: 18,
-    borderRadius: 5,
     backgroundColor: theme.palette.grey[200],
     '& .MuiLinearProgress-bar': {
-      borderRadius: 5,
       backgroundColor: overLimit ? theme.palette.error.main : theme.palette.primary.main,
     },
   }));
@@ -195,40 +193,17 @@ function App() {
               value={tab}
               onChange={(_, v) => setTab(v)}
               variant="fullWidth"
-              sx={theme => ({
-                backgroundColor: theme.palette.background.paper,
-                color: theme.palette.text.primary,
-                borderRadius: 2,
-                minHeight: '48px',
-              })}
+              sx={{ borderRadius: 0 }}
             >
-              <Tab
-                label="Tracker"
-                sx={theme => ({
-                  color: theme.palette.text.primary,
-                  minHeight: '48px',
-                })}
-              />
-              <Tab
-                label="Database"
-                sx={theme => ({
-                  color: theme.palette.text.primary,
-                  minHeight: '48px',
-                })}
-              />
-              <Tab
-                label="Settings"
-                sx={theme => ({
-                  color: theme.palette.text.primary,
-                  minHeight: '48px',
-                })}
-              />
+              <Tab label="Tracker" sx={{ '&:focus, &:focus-visible': { outline: 'none' } }} />
+              <Tab label="Database" sx={{ '&:focus, &:focus-visible': { outline: 'none' } }} />
+              <Tab label="Settings" sx={{ '&:focus, &:focus-visible': { outline: 'none' } }} />
             </Tabs>
           </Box>
           {tab === 0 && (
             <>
               <Box mb={2}>
-                <Paper elevation={2}>
+                <Paper elevation={2} sx={{ borderRadius: 0 }}>
                   <Box p={2}>
                     <Typography variant="h6" gutterBottom>Goal</Typography>
                     <Box mt={2}>
@@ -252,7 +227,7 @@ function App() {
                 </Paper>
               </Box>
               <Box mb={2}>
-                <Paper elevation={2}>
+                <Paper elevation={2} sx={{ borderRadius: 0 }}>
                   <Box p={2}>
                     <Typography variant="h6" gutterBottom>Entries</Typography>
                     <Box display="flex" flexDirection="column" gap={1} mb={2}>
@@ -369,7 +344,7 @@ function App() {
           )}
           {tab === 1 && (
             <Box mb={2}>
-              <Paper elevation={2}>
+              <Paper elevation={2} sx={{ borderRadius: 0 }}>
                 <Box p={2}>
                   <Typography variant="h6" gutterBottom>Food Database</Typography>
                   <Box display="flex" flexDirection="column" gap={1} mb={2}>
@@ -482,7 +457,7 @@ function App() {
           )}
           {tab === 2 && (
             <Box mb={2}>
-              <Paper elevation={2}>
+              <Paper elevation={2} sx={{ borderRadius: 0 }}>
                 <Box p={2}>
                   <Typography variant="h6" gutterBottom>Settings</Typography>
                   <Box display="flex" flexDirection="column" gap={2} mt={1}>
