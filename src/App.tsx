@@ -205,15 +205,15 @@ function App() {
               <Box mb={2}>
                 <Paper elevation={2} sx={{ borderRadius: 0 }}>
                   <Box p={2}>
-                    <Typography variant="h6" gutterBottom>Goal</Typography>
+                    <Typography variant="h6" gutterBottom>Today's Goal</Typography>
                     <Box mt={2}>
                       <Box mt={1} mb={1}>
                         <Box display="flex" justifyContent="space-between" mb={0.5}>
                           <Typography variant="caption" color="text.secondary">
-                            Consumed: {totalKcal} kcal
+                            Eaten: {totalKcal} kcal
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            Remaining: {Math.max(0, dailyLimit - totalKcal)} kcal
+                            Remaining: {dailyLimit - totalKcal} kcal
                           </Typography>
                         </Box>
                         <BorderLinearProgress
@@ -229,7 +229,7 @@ function App() {
               <Box mb={2}>
                 <Paper elevation={2} sx={{ borderRadius: 0 }}>
                   <Box p={2}>
-                    <Typography variant="h6" gutterBottom>Entries</Typography>
+                    <Typography variant="h6" gutterBottom>Food Diary</Typography>
                     <Box display="flex" flexDirection="column" gap={1} mb={2}>
                       <FormControl fullWidth size="small" sx={{ mb: 1 }}>
                         <InputLabel id="food-select-label">Select food</InputLabel>
@@ -333,7 +333,7 @@ function App() {
                           size="small"
                           sx={{ height: '40px' }}
                         >
-                          Remove all entries
+                          Clear all
                         </Button>
                       </Box>
                     )}
