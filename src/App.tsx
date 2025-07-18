@@ -68,7 +68,7 @@ function getSystemTheme(): 'light' | 'dark' {
 
 function App() {
   // State
-  const [dailyLimit, setDailyLimit] = useState<number>(() => load('dailyLimit', 2000));
+  const [dailyLimit, setDailyLimit] = useState<number>(() => load('dailyLimit', 2200));
   const [foodDb, setFoodDb] = useState<Food[]>(() => load('foodDb', []));
   const [entries, setEntries] = useState<Entry[]>(() => load(getTodayKey(), []));
   const [foodName, setFoodName] = useState<string>('');
