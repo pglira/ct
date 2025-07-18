@@ -335,7 +335,11 @@ function App() {
                           >
                             <ListItemText
                               primaryTypographyProps={{ variant: 'body2' }}
-                              primary={`${e.name}${e.grams ? ` (${e.grams}g)` : ''}: ${e.kcal} kcal`}
+                              primary={
+                                <span>
+                                  <strong>{e.name}</strong>{e.grams ? ` (${e.grams}g)` : ''}: {e.kcal} kcal
+                                </span>
+                              }
                             />
                           </ListItem>
                         ))}
@@ -433,7 +437,11 @@ function App() {
                           </IconButton>
                         </>
                       }>
-                        <ListItemText primary={`${f.name} (${f.kcalPer100g} kcal/100g)`} />
+                        <ListItemText primary={
+                          <span>
+                            <strong>{f.name}</strong> ({f.kcalPer100g} kcal/100g)
+                          </span>
+                        } />
                       </ListItem>
                     ))}
                   </List>
@@ -479,7 +487,7 @@ function App() {
                   <Typography variant="h6" gutterBottom>Settings</Typography>
                   <Box display="flex" flexDirection="column" gap={2} mt={1}>
                     <Box display="flex" alignItems="center" gap={2}>
-                      <Typography flex={1} variant="body1" align="left">Daily Goal (kcal)</Typography>
+                      <Typography flex={1} variant="body1" align="left">Daily limit (kcal)</Typography>
                       <TextField
                         type="number"
                         value={dailyLimit}
