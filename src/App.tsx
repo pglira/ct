@@ -1,494 +1,613 @@
-import { useState, useEffect } from 'react';
-import Container from '@mui/material/Container';
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import InputLabel from '@mui/material/InputLabel';
-import FormControl from '@mui/material/FormControl';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemText from '@mui/material/ListItemText';
-import IconButton from '@mui/material/IconButton';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import LinearProgress from '@mui/material/LinearProgress';
-import { styled } from '@mui/material/styles';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import './App.css';
-import Switch from '@mui/material/Switch';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { type ChangeEvent, type ReactNode, useEffect, useState } from 'react';
+import {
+  type Entry,
+  type Food,
+  byName,
+  dayKey,
+  exportFoods,
+  isFoodList,
+  kcalOf,
+  loadEntries,
+  loadFoods,
+  loadLimit,
+  saveEntries,
+  saveFoods,
+  saveLimit,
+} from './data';
+import { Icon, type IconName } from './icons';
+import { SwipeRow } from './SwipeRow';
+import { type Theme, useTheme } from './theme';
 
-// Types
-type Food = {
-  id: string;
-  name: string;
-  kcalPer100g: number;
-};
-type Entry = {
-  id: string;
-  foodId?: string;
-  name: string;
-  grams?: number;
-  kcal: number;
+const THEME_ICONS: Record<Theme, IconName> = { auto: 'auto', light: 'sun', dark: 'moon' };
+const THEME_LABELS: Record<Theme, string> = {
+  auto: 'Theme: system',
+  light: 'Theme: light',
+  dark: 'Theme: dark',
 };
 
-// Helpers
-function getTodayKey(): string {
-  const now: Date = new Date();
-  return `entries_${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+// The interval in which the app checks for the start of a new day.
+const DAY_CHECK_MS = 60_000;
+
+// The open sheet: an entry form (id null for a new entry), the food list, a
+// food form (id null for a new food) or the settings.
+type Sheet =
+  | { kind: 'entry'; id: string | null }
+  | { kind: 'foods' }
+  | { kind: 'food'; id: string | null }
+  | { kind: 'settings' }
+  | null;
+
+// The entries of one day, with the storage key of that day.
+interface Day {
+  key: string;
+  entries: Entry[];
 }
 
-function load<T>(key: string, fallback: T): T {
-  const raw: string | null = localStorage.getItem(key);
-  if (raw) {
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return fallback;
-    }
-  }
-  return fallback;
-}
-function save<T>(key: string, value: T): void {
-  localStorage.setItem(key, JSON.stringify(value));
-}
+const loadDay = (): Day => ({ key: dayKey(), entries: loadEntries(dayKey()) });
 
-// Helper to get system theme
-function getSystemTheme(): 'light' | 'dark' {
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-  return 'light';
-}
+export default function App() {
+  const [limit, setLimit] = useState(loadLimit);
+  const [foods, setFoods] = useState(loadFoods);
+  const [day, setDay] = useState(loadDay);
+  const [sheet, setSheet] = useState<Sheet>(null);
+  // The id of the entry whose row shows the swipe actions.
+  const [swiped, setSwiped] = useState<string | null>(null);
+  const [theme, nextTheme] = useTheme();
 
-function App() {
-  // State
-  const [dailyLimit, setDailyLimit] = useState<number>(() => load('dailyLimit', 2200));
-  const [foodDb, setFoodDb] = useState<Food[]>(() => load('foodDb', []));
-  const [entries, setEntries] = useState<Entry[]>(() => load(getTodayKey(), []));
-  const [foodName, setFoodName] = useState<string>('');
-  const [foodKcal, setFoodKcal] = useState<string>('');
-  const [entryFoodId, setEntryFoodId] = useState<string>('');
-  const [entryGrams, setEntryGrams] = useState<string>('');
-  const [tab, setTab] = useState(0);
-  const [mode, setMode] = useState<'light' | 'dark'>(() => load('themeMode', getSystemTheme()));
-  // Remove editId, editName, editKcal state and handlers
+  useEffect(() => saveLimit(limit), [limit]);
+  useEffect(() => saveFoods(foods), [foods]);
+  useEffect(() => saveEntries(day.key, day.entries), [day]);
 
-  // Effects: persist state
-  useEffect(() => { save('dailyLimit', dailyLimit); }, [dailyLimit]);
-  useEffect(() => { save('foodDb', foodDb); }, [foodDb]);
-  useEffect(() => { save(getTodayKey(), entries); }, [entries]);
-  // Effect: persist theme mode
-  useEffect(() => { save('themeMode', mode); }, [mode]);
-
-  // Reset entries at midnight
+  // Show the entries of the new day after midnight, also when the app comes
+  // back from the background.
   useEffect(() => {
-    const now: Date = new Date();
-    const msToMidnight: number = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime();
-    const timeout = setTimeout(() => setEntries([]), msToMidnight + 1000);
-    return () => clearTimeout(timeout);
-  }, [entries]);
-
-  // Handlers
-  function addFood(): void {
-    if (!foodName.trim() || !foodKcal.trim() || isNaN(Number(foodKcal))) return;
-    setFoodDb([
-      ...foodDb,
-      { id: crypto.randomUUID(), name: foodName.trim(), kcalPer100g: Number(foodKcal) },
-    ]);
-    setFoodName('');
-    setFoodKcal('');
-  }
-  function removeFood(id: string): void {
-    setFoodDb(foodDb.filter(f => f.id !== id));
-  }
-  function addEntryFromDb(): void {
-    const food: Food | undefined = foodDb.find(f => f.id === entryFoodId);
-    if (!food || !entryGrams.trim() || isNaN(Number(entryGrams))) return;
-    const grams: number = Number(entryGrams);
-    const kcal: number = Math.round((food.kcalPer100g * grams) / 100);
-    setEntries([
-      ...entries,
-      { id: crypto.randomUUID(), foodId: food.id, name: food.name, grams, kcal },
-    ]);
-    setEntryFoodId('');
-    setEntryGrams('');
-  }
-  function removeEntry(id: string): void {
-    setEntries(entries.filter(e => e.id !== id));
-  }
-  function resetEntries(): void {
-    setEntries([]);
-  }
-
-  // Export foodDb as JSON file
-  function exportFoodDb() {
-    const dataStr = JSON.stringify(foodDb, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'foodDb.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  // Import foodDb from JSON file
-  function importFoodDb(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        if (Array.isArray(json) && json.every(f => typeof f.id === 'string' && typeof f.name === 'string' && typeof f.kcalPer100g === 'number')) {
-          setFoodDb(json);
-        } else {
-          alert('Invalid file format.');
-        }
-      } catch {
-        alert('Could not parse file.');
-      }
+    const check = () => setDay((d) => (d.key === dayKey() ? d : loadDay()));
+    const timer = setInterval(check, DAY_CHECK_MS);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
     };
-    reader.readAsText(file);
-    // Reset input value so the same file can be selected again
-    e.target.value = '';
-  }
+  }, []);
 
-  // Sort foodDb alphabetically by name for display
-  const sortedFoodDb: Food[] = [...foodDb].sort((a, b) => a.name.localeCompare(b.name));
+  const setEntries = (update: (entries: Entry[]) => Entry[]) =>
+    setDay((d) => ({ ...d, entries: update(d.entries) }));
+  const removeEntry = (id: string) => setEntries((es) => es.filter((e) => e.id !== id));
 
-  // UI
-  const totalKcal: number = entries.reduce((sum, e) => sum + e.kcal, 0);
-  const overLimit: boolean = totalKcal > dailyLimit;
-  const progress = Math.min(100, (totalKcal / dailyLimit) * 100);
-
-  // Custom progress bar
-  const BorderLinearProgress = styled(LinearProgress)(({ theme }) => ({
-    height: 18,
-    backgroundColor: theme.palette.grey[200],
-    '& .MuiLinearProgress-bar': {
-      backgroundColor: overLimit ? theme.palette.error.main : theme.palette.primary.main,
-    },
-  }));
-
-  // MUI theme
-  const theme = createTheme({
-    palette: {
-      mode,
-    },
-  });
+  const eaten = day.entries.reduce((sum, e) => sum + e.kcal, 0);
+  const remaining = limit - eaten;
+  const close = () => setSheet(null);
+  const sheetEntry = sheet?.kind === 'entry' ? day.entries.find((e) => e.id === sheet.id) : undefined;
+  const sheetFood = sheet?.kind === 'food' ? foods.find((f) => f.id === sheet.id) : undefined;
 
   return (
-    <ThemeProvider theme={theme}>
-      <Box sx={theme => ({ minHeight: '100vh', backgroundColor: theme.palette.background.default })}>
-        <Container maxWidth="xs">
-          <Box mb={2}>
-            <Tabs
-              value={tab}
-              onChange={(_, v) => setTab(v)}
-              variant="fullWidth"
-              sx={{ borderRadius: 0 }}
-            >
-              <Tab label="Tracker" sx={{ '&:focus, &:focus-visible': { outline: 'none' } }} />
-              <Tab label="Database" sx={{ '&:focus, &:focus-visible': { outline: 'none' } }} />
-              <Tab label="Settings" sx={{ '&:focus, &:focus-visible': { outline: 'none' } }} />
-            </Tabs>
-          </Box>
-          {tab === 0 && (
-            <>
-              <Box mb={2}>
-                <Paper elevation={2} sx={{ borderRadius: 0 }}>
-                  <Box p={2}>
-                    <Typography variant="h6" gutterBottom>Today's Goal</Typography>
-                    <Box mt={2}>
-                      <Box mt={1} mb={1}>
-                        <Box display="flex" justifyContent="space-between" mb={0.5}>
-                          <Typography variant="caption" color="text.secondary">
-                            Eaten: {totalKcal} kcal
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Remaining: {dailyLimit - totalKcal} kcal
-                          </Typography>
-                        </Box>
-                        <BorderLinearProgress
-                          variant="determinate"
-                          value={progress}
-                          color={overLimit ? 'error' : 'primary'}
-                        />
-                      </Box>
-                    </Box>
-                  </Box>
-                </Paper>
-              </Box>
-              <Box mb={2}>
-                <Paper elevation={2} sx={{ borderRadius: 0 }}>
-                  <Box p={2}>
-                    <Typography variant="h6" gutterBottom>Food Diary</Typography>
-                    <Box display="flex" flexDirection="column" gap={1} mb={2}>
-                      <FormControl fullWidth size="small" sx={{ mb: 1 }}>
-                        <InputLabel id="food-select-label">Select food</InputLabel>
-                        <Select
-                          labelId="food-select-label"
-                          value={entryFoodId}
-                          label="Select food"
-                          onChange={e => setEntryFoodId(e.target.value)}
-                          fullWidth
-                          sx={{
-                            '& .MuiSelect-select': {
-                              height: '40px',
-                              boxSizing: 'border-box',
-                              display: 'flex',
-                              alignItems: 'center'
-                            }
-                          }}
-                        >
-                          <MenuItem value="">Select food</MenuItem>
-                          {sortedFoodDb.map(f => (
-                            <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                      <Box display="flex" gap={1}>
-                        <TextField
-                          label="grams"
-                          type="number"
-                          value={entryGrams}
-                          onChange={e => setEntryGrams(e.target.value)}
-                          inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-                          size="small"
-                          sx={{
-                            '& .MuiInputBase-root': {
-                              height: '40px',
-                              display: 'flex',
-                              alignItems: 'center'
-                            },
-                            flex: 1
-                          }}
-                        />
-                        <Button
-                          variant="contained"
-                          onClick={addEntryFromDb}
-                          size="small"
-                          sx={{
-                            height: '40px',
-                            minWidth: '80px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          Add
-                        </Button>
-                      </Box>
-                    </Box>
-                    {entries.length > 0 ? (
-                      <List dense sx={{ minHeight: '60px' }}>
-                        {entries.map(e => (
-                          <ListItem
-                            key={e.id}
-                            disablePadding
-                            secondaryAction={
-                              <>
-                                <IconButton edge="end" aria-label="edit" onClick={() => {
-                                  setEntryFoodId(e.foodId ?? '');
-                                  setEntryGrams(e.grams?.toString() ?? '');
-                                  removeEntry(e.id);
-                                }} size="small">
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
-                                <IconButton edge="end" aria-label="delete" onClick={() => removeEntry(e.id)} size="small">
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </>
-                            }
-                          >
-                            <ListItemText
-                              primaryTypographyProps={{ variant: 'body2' }}
-                              primary={
-                                <span>
-                                  <strong>{e.name}</strong>{e.grams ? ` (${e.grams}g)` : ''}: {e.kcal} kcal
-                                </span>
-                              }
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary" align="center" py={1}>
-                        No entries yet
-                      </Typography>
-                    )}
-                    {entries.length > 0 && (
-                      <Box display="flex" justifyContent="center" mt={2}>
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          onClick={resetEntries}
-                          size="small"
-                          sx={{ height: '40px' }}
-                        >
-                          Clear all
-                        </Button>
-                      </Box>
-                    )}
-                  </Box>
-                </Paper>
-              </Box>
-            </>
-          )}
-          {tab === 1 && (
-            <Box mb={2}>
-              <Paper elevation={2} sx={{ borderRadius: 0 }}>
-                <Box p={2}>
-                  <Typography variant="h6" gutterBottom>Food Database</Typography>
-                  <Box display="flex" flexDirection="column" gap={1} mb={2}>
-                    <TextField
-                      label="Food name"
-                      value={foodName}
-                      onChange={e => setFoodName(e.target.value)}
-                      size="small"
-                      fullWidth
-                      sx={{
-                        '& .MuiInputBase-root': {
-                          height: '40px',
-                          display: 'flex',
-                          alignItems: 'center'
-                        },
-                        mb: 1
-                      }}
-                    />
-                    <Box display="flex" gap={1}>
-                      <TextField
-                        label="kcal/100g"
-                        type="number"
-                        value={foodKcal}
-                        onChange={e => setFoodKcal(e.target.value)}
-                        inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-                        size="small"
-                        sx={{
-                          '& .MuiInputBase-root': {
-                            height: '40px',
-                            display: 'flex',
-                            alignItems: 'center'
-                          },
-                          flex: 1
-                        }}
-                      />
-                      <Button
-                        variant="contained"
-                        onClick={addFood}
-                        size="small"
-                        sx={{
-                          height: '40px',
-                          minWidth: '80px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        Add
-                      </Button>
-                    </Box>
-                  </Box>
-                  <List dense>
-                    {sortedFoodDb.map(f => (
-                      <ListItem key={f.id} secondaryAction={
-                        <>
-                          <IconButton edge="end" aria-label="edit" onClick={() => {
-                            setFoodName(f.name);
-                            setFoodKcal(f.kcalPer100g.toString());
-                            removeFood(f.id);
-                          }} size="small">
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton edge="end" aria-label="delete" onClick={() => removeFood(f.id)} size="small">
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </>
-                      }>
-                        <ListItemText primary={
-                          <span>
-                            <strong>{f.name}</strong> ({f.kcalPer100g} kcal/100g)
-                          </span>
-                        } />
-                      </ListItem>
-                    ))}
-                  </List>
-                  <Box display="flex" gap={1} mt={2}>
-                    <Button
-                      variant="contained"
-                      onClick={exportFoodDb}
-                      size="small"
-                      sx={{
-                        height: '40px',
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      Export
-                    </Button>
-                    <Button
-                      variant="contained"
-                      component="label"
-                      size="small"
-                      sx={{
-                        height: '40px',
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      Import
-                      <input type="file" accept="application/json" hidden onChange={importFoodDb} />
-                    </Button>
-                  </Box>
-                </Box>
-              </Paper>
-            </Box>
-          )}
-          {tab === 2 && (
-            <Box mb={2}>
-              <Paper elevation={2} sx={{ borderRadius: 0 }}>
-                <Box p={2}>
-                  <Typography variant="h6" gutterBottom>Settings</Typography>
-                  <Box display="flex" flexDirection="column" gap={2} mt={1}>
-                    <Box display="flex" alignItems="center" gap={2}>
-                      <Typography flex={1} variant="body1" align="left">Daily limit (kcal)</Typography>
-                      <TextField
-                        type="number"
-                        value={dailyLimit}
-                        onChange={e => setDailyLimit(Number(e.target.value))}
-                        inputProps={{ min: 0, inputMode: 'numeric', pattern: '[0-9]*' }}
-                        size="small"
-                        sx={{ width: '120px', '& .MuiInputBase-root': { height: '40px' } }}
-                      />
-                    </Box>
-                    <Box display="flex" alignItems="center" gap={2}>
-                      <Typography flex={1} variant="body1" align="left">Dark mode</Typography>
-                      <Switch
-                        checked={mode === 'dark'}
-                        onChange={(_, checked) => setMode(checked ? 'dark' : 'light')}
-                        color="primary"
-                      />
-                    </Box>
-                  </Box>
-                </Box>
-              </Paper>
-            </Box>
-          )}
-        </Container>
-      </Box>
-    </ThemeProvider>
+    <main>
+      <header>
+        <h1>CalTrack</h1>
+        <div className="header-buttons">
+          <button
+            className="icon"
+            onClick={nextTheme}
+            aria-label={THEME_LABELS[theme]}
+            title={THEME_LABELS[theme]}
+          >
+            <Icon name={THEME_ICONS[theme]} />
+          </button>
+          <button
+            className="icon"
+            onClick={() => setSheet({ kind: 'foods' })}
+            aria-label="Food list"
+            title="Food list"
+          >
+            <Icon name="list" />
+          </button>
+          <button
+            className="icon"
+            onClick={() => setSheet({ kind: 'settings' })}
+            aria-label="Settings"
+            title="Settings"
+          >
+            <Icon name="settings" />
+          </button>
+          <button
+            className="add"
+            onClick={() => setSheet({ kind: 'entry', id: null })}
+            aria-label="Add entry"
+            title="Add entry"
+          >
+            <Icon name="plus" size={24} />
+          </button>
+        </div>
+      </header>
+
+      <section className={remaining < 0 ? 'summary over' : 'summary'}>
+        <div className="totals">
+          <div>
+            <span className="label">Eaten</span>
+            <span className="value">{eaten}</span>
+          </div>
+          <div className="right">
+            <span className="label">{remaining < 0 ? 'Over' : 'Remaining'}</span>
+            <span className="value">{Math.abs(remaining)}</span>
+          </div>
+        </div>
+        <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={limit} aria-valuenow={eaten}>
+          <div style={{ width: `${Math.min(100, (eaten / limit) * 100)}%` }} />
+        </div>
+        <span className="label">Daily limit: {limit} kcal</span>
+      </section>
+
+      <div className="toolbar">
+        <span>Today</span>
+        <ClearButton disabled={day.entries.length === 0} onConfirm={() => setEntries(() => [])} />
+      </div>
+
+      {day.entries.length === 0 && <p className="empty">No entries. Tap + to add an entry.</p>}
+
+      <ul>
+        {day.entries.map((entry) => (
+          <SwipeRow
+            key={entry.id}
+            className="row"
+            open={swiped === entry.id}
+            onOpen={() => setSwiped(entry.id)}
+            onClose={() => setSwiped(null)}
+            onEdit={() => {
+              setSwiped(null);
+              setSheet({ kind: 'entry', id: entry.id });
+            }}
+            onDelete={() => {
+              setSwiped(null);
+              removeEntry(entry.id);
+            }}
+          >
+            <button className="info" onClick={() => setSheet({ kind: 'entry', id: entry.id })}>
+              <span className="name">{entry.name}</span>
+              <span className="detail">{entry.grams ? `${entry.grams} g` : 'Custom'}</span>
+            </button>
+            <span className="kcal">
+              {entry.kcal}
+              <small> kcal</small>
+            </span>
+          </SwipeRow>
+        ))}
+      </ul>
+
+      {sheet?.kind === 'entry' && (
+        <EntryForm
+          key={sheet.id ?? 'new'}
+          foods={foods}
+          entry={sheetEntry}
+          onCancel={close}
+          onSave={(entry) => {
+            setEntries((es) =>
+              sheetEntry
+                ? es.map((e) => (e.id === sheetEntry.id ? { ...entry, id: e.id } : e))
+                : [...es, { ...entry, id: crypto.randomUUID() }],
+            );
+            close();
+          }}
+          onDelete={
+            sheetEntry
+              ? () => {
+                  removeEntry(sheetEntry.id);
+                  close();
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {sheet?.kind === 'foods' && (
+        <FoodList
+          foods={foods}
+          onSelect={(id) => setSheet({ kind: 'food', id })}
+          onImport={setFoods}
+          onClose={close}
+        />
+      )}
+
+      {sheet?.kind === 'food' && (
+        <FoodForm
+          key={sheet.id ?? 'new'}
+          food={sheetFood}
+          onCancel={() => setSheet({ kind: 'foods' })}
+          onSave={(name, kcalPer100g) => {
+            setFoods((fs) =>
+              sheetFood
+                ? fs.map((f) => (f.id === sheetFood.id ? { ...f, name, kcalPer100g } : f))
+                : [...fs, { id: crypto.randomUUID(), name, kcalPer100g }],
+            );
+            setSheet({ kind: 'foods' });
+          }}
+          onDelete={
+            sheetFood
+              ? () => {
+                  setFoods((fs) => fs.filter((f) => f.id !== sheetFood.id));
+                  setSheet({ kind: 'foods' });
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {sheet?.kind === 'settings' && (
+        <SettingsForm
+          limit={limit}
+          onCancel={close}
+          onSave={(value) => {
+            setLimit(value);
+            close();
+          }}
+        />
+      )}
+    </main>
   );
 }
 
-export default App;
+const CONFIRM_MS = 3000;
+
+// A button that calls onAction after a second tap. The button returns to its
+// first state when the second tap does not come within CONFIRM_MS.
+function ConfirmButton(props: {
+  className?: string;
+  armedClassName: string;
+  disabled?: boolean;
+  onAction: () => void;
+  children: (armed: boolean) => ReactNode;
+}) {
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return;
+    const timer = setTimeout(() => setArmed(false), CONFIRM_MS);
+    return () => clearTimeout(timer);
+  }, [armed]);
+
+  return (
+    <button
+      type="button"
+      className={[props.className, armed && props.armedClassName].filter(Boolean).join(' ') || undefined}
+      disabled={props.disabled}
+      onClick={() => {
+        if (armed) props.onAction();
+        setArmed(!armed);
+      }}
+    >
+      {props.children(armed)}
+    </button>
+  );
+}
+
+function ClearButton({ disabled, onConfirm }: { disabled: boolean; onConfirm: () => void }) {
+  return (
+    <ConfirmButton armedClassName="armed" disabled={disabled} onAction={onConfirm}>
+      {(armed) => (
+        <>
+          <Icon name="restart" size={18} />
+          {armed ? 'Tap to confirm' : 'Clear day'}
+        </>
+      )}
+    </ConfirmButton>
+  );
+}
+
+function DeleteButton({ onDelete }: { onDelete: () => void }) {
+  return (
+    <ConfirmButton className="delete" armedClassName="armed" onAction={onDelete}>
+      {(armed) => (armed ? 'Tap to delete' : 'Delete')}
+    </ConfirmButton>
+  );
+}
+
+function SheetFrame(props: {
+  title: string;
+  onCancel: () => void;
+  onSubmit: () => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && props.onCancel();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [props.onCancel]);
+
+  return (
+    <div className="backdrop" onClick={props.onCancel}>
+      <form
+        className="sheet"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          props.onSubmit();
+        }}
+      >
+        <h2>{props.title}</h2>
+        {props.children}
+      </form>
+    </div>
+  );
+}
+
+// A positive number from the text of an input, or 0.
+const toNumber = (v: string) => Math.max(0, Number(v.replace(',', '.')) || 0);
+
+function NumberInput(props: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <label>
+      {props.label}
+      <input
+        type="text"
+        inputMode="decimal"
+        autoFocus={props.autoFocus}
+        value={props.value}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => props.onChange(e.target.value.replace(/[^0-9.,]/g, ''))}
+      />
+    </label>
+  );
+}
+
+// Show the foods whose name contains the search text, in the order of the name.
+function useFoodSearch(foods: Food[]): [string, (text: string) => void, Food[]] {
+  const [search, setSearch] = useState('');
+  const text = search.trim().toLowerCase();
+  const matches = foods.filter((f) => f.name.toLowerCase().includes(text)).sort(byName);
+  return [search, setSearch, matches];
+}
+
+function SearchInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <input
+      type="search"
+      placeholder="Search"
+      aria-label="Search"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      // Enter in the search field does not submit the sheet.
+      onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+    />
+  );
+}
+
+type EntryMode = 'food' | 'custom';
+
+interface EntryFormProps {
+  foods: Food[];
+  entry?: Entry;
+  onSave: (entry: Omit<Entry, 'id'>) => void;
+  onCancel: () => void;
+  onDelete?: () => void;
+}
+
+// Add or edit an entry: a food from the food list with the grams, or a name
+// with a custom kcal value.
+function EntryForm({ foods, entry, onSave, onCancel, onDelete }: EntryFormProps) {
+  const initialFood = foods.find((f) => f.id === entry?.foodId);
+  const [mode, setMode] = useState<EntryMode>(
+    initialFood || (!entry && foods.length > 0) ? 'food' : 'custom',
+  );
+  const [foodId, setFoodId] = useState(initialFood?.id ?? '');
+  const [grams, setGrams] = useState(initialFood ? String(entry?.grams ?? '') : '');
+  const [name, setName] = useState(initialFood ? '' : (entry?.name ?? ''));
+  const [kcal, setKcal] = useState(initialFood ? '' : String(entry?.kcal ?? ''));
+  const [search, setSearch, matches] = useFoodSearch(foods);
+
+  const food = foods.find((f) => f.id === foodId);
+  const gramsValue = toNumber(grams);
+  const result: Omit<Entry, 'id'> | null =
+    mode === 'food'
+      ? food && gramsValue > 0
+        ? { foodId: food.id, name: food.name, grams: gramsValue, kcal: kcalOf(food, gramsValue) }
+        : null
+      : toNumber(kcal) > 0
+        ? { name: name.trim() || 'Custom', kcal: Math.round(toNumber(kcal)) }
+        : null;
+
+  return (
+    <SheetFrame
+      title={entry ? 'Edit entry' : 'New entry'}
+      onCancel={onCancel}
+      onSubmit={() => result && onSave(result)}
+    >
+      <div className="segmented" role="radiogroup" aria-label="Entry type">
+        {(['food', 'custom'] as EntryMode[]).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={m === mode}
+            onClick={() => setMode(m)}
+          >
+            {m === 'food' ? 'Food list' : 'Custom kcal'}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'food' && (
+        <>
+          {foods.length === 0 ? (
+            <p className="hint">No foods. Add foods in the food list.</p>
+          ) : (
+            <>
+              <SearchInput value={search} onChange={setSearch} />
+              <div className="choices" role="radiogroup" aria-label="Food">
+                {matches.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={f.id === foodId}
+                    onClick={() => setFoodId(f.id)}
+                  >
+                    <span>{f.name}</span>
+                    <small>{f.kcalPer100g} kcal/100 g</small>
+                  </button>
+                ))}
+                {matches.length === 0 && <p className="hint">No food matches the search.</p>}
+              </div>
+            </>
+          )}
+          <NumberInput label="Grams" value={grams} onChange={setGrams} />
+        </>
+      )}
+
+      {mode === 'custom' && (
+        <>
+          <label>
+            Name
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Custom" />
+          </label>
+          <NumberInput label="kcal" value={kcal} onChange={setKcal} />
+        </>
+      )}
+
+      <p className="preview">
+        {mode === 'food' && !food ? 'Select a food.' : 'Energy: '}
+        {(mode === 'custom' || food) && <strong>{result?.kcal ?? 0} kcal</strong>}
+      </p>
+
+      <div className="buttons">
+        {onDelete && <DeleteButton onDelete={onDelete} />}
+        <button type="button" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="submit" className="primary" disabled={!result}>
+          Save
+        </button>
+      </div>
+    </SheetFrame>
+  );
+}
+
+interface FoodListProps {
+  foods: Food[];
+  onSelect: (id: string | null) => void;
+  onImport: (foods: Food[]) => void;
+  onClose: () => void;
+}
+
+// The food list with the energy per 100 g of each food. The list can be
+// exported to and imported from a JSON file.
+function FoodList({ foods, onSelect, onImport, onClose }: FoodListProps) {
+  const [search, setSearch, matches] = useFoodSearch(foods);
+  const [error, setError] = useState('');
+
+  const importFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear the input so that the same file can be selected again.
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const json: unknown = JSON.parse(await file.text());
+      if (!isFoodList(json)) throw new Error();
+      onImport(json);
+      setError('');
+    } catch {
+      setError('The file is not a valid food list.');
+    }
+  };
+
+  return (
+    <SheetFrame title="Food list" onCancel={onClose} onSubmit={() => onSelect(null)}>
+      {foods.length > 0 && <SearchInput value={search} onChange={setSearch} />}
+      <div className="choices">
+        {matches.map((f) => (
+          <button key={f.id} type="button" onClick={() => onSelect(f.id)}>
+            <span>{f.name}</span>
+            <small>{f.kcalPer100g} kcal/100 g</small>
+          </button>
+        ))}
+        {foods.length === 0 && <p className="hint">No foods. Tap New food to add a food.</p>}
+        {foods.length > 0 && matches.length === 0 && <p className="hint">No food matches the search.</p>}
+      </div>
+      {error && <p className="error">{error}</p>}
+      <div className="file-buttons">
+        <label className="file-button" title="Import from a JSON file">
+          <Icon name="upload" size={18} />
+          Import
+          <input type="file" accept="application/json,.json" hidden onChange={importFile} />
+        </label>
+        <button
+          type="button"
+          className="file-button"
+          disabled={foods.length === 0}
+          onClick={() => exportFoods(foods)}
+          title="Export to a JSON file"
+        >
+          <Icon name="download" size={18} />
+          Export
+        </button>
+      </div>
+      <div className="buttons">
+        <button type="button" onClick={onClose}>
+          Close
+        </button>
+        <button type="submit" className="primary">
+          New food
+        </button>
+      </div>
+    </SheetFrame>
+  );
+}
+
+interface FoodFormProps {
+  food?: Food;
+  onSave: (name: string, kcalPer100g: number) => void;
+  onCancel: () => void;
+  onDelete?: () => void;
+}
+
+function FoodForm({ food, onSave, onCancel, onDelete }: FoodFormProps) {
+  const [name, setName] = useState(food?.name ?? '');
+  const [kcal, setKcal] = useState(food ? String(food.kcalPer100g) : '');
+  const kcalValue = toNumber(kcal);
+  const valid = name.trim() !== '' && kcalValue > 0;
+
+  return (
+    <SheetFrame
+      title={food ? 'Edit food' : 'New food'}
+      onCancel={onCancel}
+      onSubmit={() => valid && onSave(name.trim(), kcalValue)}
+    >
+      <label>
+        Name
+        <input value={name} onChange={(e) => setName(e.target.value)} autoFocus={!food} />
+      </label>
+      <NumberInput label="kcal per 100 g" value={kcal} onChange={setKcal} />
+      <div className="buttons">
+        {onDelete && <DeleteButton onDelete={onDelete} />}
+        <button type="button" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="submit" className="primary" disabled={!valid}>
+          Save
+        </button>
+      </div>
+    </SheetFrame>
+  );
+}
+
+function SettingsForm(props: { limit: number; onSave: (limit: number) => void; onCancel: () => void }) {
+  const [limit, setLimit] = useState(String(props.limit));
+  const value = Math.round(toNumber(limit));
+
+  return (
+    <SheetFrame title="Settings" onCancel={props.onCancel} onSubmit={() => value > 0 && props.onSave(value)}>
+      <NumberInput label="Daily limit (kcal)" value={limit} onChange={setLimit} />
+      <div className="buttons">
+        <button type="button" onClick={props.onCancel}>
+          Cancel
+        </button>
+        <button type="submit" className="primary" disabled={value <= 0}>
+          Save
+        </button>
+      </div>
+    </SheetFrame>
+  );
+}

@@ -1,27 +1,30 @@
-# Calorie Tracker PWA
+# CalTrack
 
-A simple, installable Progressive Web App for tracking daily calories.
+A Progressive Web App that tracks the calories that you eat in one day.
 
-## Features
-- Set and persist daily calorie limit
-- Editable food database (add/remove foods)
-- Add food entries by grams (from DB) or custom kcal
-- Track today’s total, reset at midnight
-- Responsive, mobile-first UI
-- Works offline, installable as a PWA
+- Add an entry from the food list with the grams, or add an entry with a custom kcal value.
+- See the eaten and the remaining calories of the day against the daily limit.
+- Tap an entry to edit it. Swipe an entry to the left to show Edit and Delete.
+- Keep a food list with the kcal per 100 g of each food. Export the list to a JSON file and import it again.
+- The entries of each day are stored separately, so each new day starts empty.
 
 ## Tech
-- React + TypeScript + Vite
-- localStorage for persistence
 
-## Getting Started
+- React, TypeScript and Vite
+- `vite-plugin-pwa` for the manifest, the service worker and the offline cache
+- `localStorage` for the data
+
+## Development
+
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173 in your browser.
+## Deployment
 
-## PWA
-- Add to home screen on mobile for app-like experience.
-- Works offline after first load.
+Vercel builds the app and publishes it on each push to `main`. The app is served at `https://ct-flax.vercel.app`.
+
+## Install on iOS
+
+Open the URL in Safari, tap Share and select "Add to Home Screen".
