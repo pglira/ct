@@ -451,3 +451,39 @@ input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+.quick {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin: 0 -16px 16px;
+  padding: 0 16px;
+  scrollbar-width: none;
+}
+
+.quick::-webkit-scrollbar {
+  display: none;
+}
+
+.quick button {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 70%;
+  padding: 10px 12px;
+  background: var(--card);
+  border-left: 4px solid var(--accent);
+}
+
+.quick-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick small {
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

@@ -73,3 +73,56 @@ export function exportFoods(foods: Food[]): void {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// The entries of all stored days except the day with the key exclude, oldest
+// day first.
+export function loadPastEntries(exclude: string): Entry[] {
+  const days: [number, Entry[]][] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const match = key?.match(/^entries_(\d+)-(\d+)-(\d+)$/);
+      if (!key || !match || key === exclude) continue;
+      const time = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).getTime();
+      days.push([time, loadEntries(key)]);
+    }
+  } catch {
+    // Storage is blocked; there are no past entries.
+  }
+  return days.sort((a, b) => a[0] - b[0]).flatMap(([, entries]) => entries);
+}
+
+// How often the user ate a food and the grams of the last entry.
+export interface Usage {
+  count: number;
+  grams: number;
+}
+
+export function usageOf(entries: Entry[]): Map<string, Usage> {
+  const usage = new Map<string, Usage>();
+  for (const e of entries) {
+    if (!e.foodId || !e.grams) continue;
+    usage.set(e.foodId, { count: (usage.get(e.foodId)?.count ?? 0) + 1, grams: e.grams });
+  }
+  return usage;
+}
+
+// The last different entries, newest first. A food entry gets the current
+// name and kcal of its food; an entry of a deleted food is left out.
+export function recentEntries(entries: Entry[], foods: Food[], max: number): Omit<Entry, 'id'>[] {
+  const result = new Map<string, Omit<Entry, 'id'>>();
+  for (let i = entries.length - 1; i >= 0 && result.size < max; i--) {
+    const e = entries[i];
+    if (e.foodId && e.grams) {
+      const food = foods.find((f) => f.id === e.foodId);
+      const key = `${e.foodId}/${e.grams}`;
+      if (food && !result.has(key)) {
+        result.set(key, { foodId: food.id, name: food.name, grams: e.grams, kcal: kcalOf(food, e.grams) });
+      }
+    } else {
+      const key = `custom/${e.name}/${e.kcal}`;
+      if (!result.has(key)) result.set(key, { name: e.name, kcal: e.kcal });
+    }
+  }
+  return [...result.values()];
+}

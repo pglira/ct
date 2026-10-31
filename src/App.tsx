@@ -1,7 +1,8 @@
-import { type ChangeEvent, type ReactNode, useEffect, useState } from 'react';
+import { type ChangeEvent, type ReactNode, type Ref, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type Entry,
   type Food,
+  type Usage,
   byName,
   dayKey,
   exportFoods,
@@ -10,9 +11,12 @@ import {
   loadEntries,
   loadFoods,
   loadLimit,
+  loadPastEntries,
+  recentEntries,
   saveEntries,
   saveFoods,
   saveLimit,
+  usageOf,
 } from './data';
 import { Icon, type IconName } from './icons';
 import { SwipeRow } from './SwipeRow';
@@ -36,6 +40,9 @@ type Sheet =
   | { kind: 'food'; id: string | null }
   | { kind: 'settings' }
   | null;
+
+// The number of recent entries that the quick add row shows.
+const QUICK_ADD_MAX = 8;
 
 // The entries of one day, with the storage key of that day.
 interface Day {
@@ -73,6 +80,14 @@ export default function App() {
   const setEntries = (update: (entries: Entry[]) => Entry[]) =>
     setDay((d) => ({ ...d, entries: update(d.entries) }));
   const removeEntry = (id: string) => setEntries((es) => es.filter((e) => e.id !== id));
+  const addEntry = (entry: Omit<Entry, 'id'>) => setEntries((es) => [...es, { ...entry, id: crypto.randomUUID() }]);
+
+  // The entries of the past days, for the usage of each food and the quick
+  // add row.
+  const past = useMemo(() => loadPastEntries(day.key), [day.key]);
+  const history = [...past, ...day.entries];
+  const usage = usageOf(history);
+  const recent = recentEntries(history, foods, QUICK_ADD_MAX);
 
   const eaten = day.entries.reduce((sum, e) => sum + e.kcal, 0);
   const remaining = limit - eaten;
@@ -137,6 +152,22 @@ export default function App() {
         <span className="label">Daily limit: {limit} kcal</span>
       </section>
 
+      {recent.length > 0 && (
+        <div className="quick" role="group" aria-label="Quick add">
+          {recent.map((entry) => (
+            <button
+              key={entry.foodId ? `food/${entry.foodId}/${entry.grams}` : `custom/${entry.name}/${entry.kcal}`}
+              onClick={() => addEntry(entry)}
+              title={`Add ${entry.name}`}
+            >
+              <Icon name="plus" size={16} />
+              <span className="quick-name">{entry.name}</span>
+              <small>{entry.grams ? `${entry.grams} g` : `${entry.kcal} kcal`}</small>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="toolbar">
         <span>Today</span>
         <ClearButton disabled={day.entries.length === 0} onConfirm={() => setEntries(() => [])} />
@@ -177,14 +208,15 @@ export default function App() {
         <EntryForm
           key={sheet.id ?? 'new'}
           foods={foods}
+          usage={usage}
           entry={sheetEntry}
           onCancel={close}
           onSave={(entry) => {
-            setEntries((es) =>
-              sheetEntry
-                ? es.map((e) => (e.id === sheetEntry.id ? { ...entry, id: e.id } : e))
-                : [...es, { ...entry, id: crypto.randomUUID() }],
-            );
+            if (sheetEntry) {
+              setEntries((es) => es.map((e) => (e.id === sheetEntry.id ? { ...entry, id: e.id } : e)));
+            } else {
+              addEntry(entry);
+            }
             close();
           }}
           onDelete={
@@ -337,6 +369,7 @@ function NumberInput(props: {
   value: string;
   onChange: (value: string) => void;
   autoFocus?: boolean;
+  inputRef?: Ref<HTMLInputElement>;
 }) {
   return (
     <label>
@@ -344,6 +377,8 @@ function NumberInput(props: {
       <input
         type="text"
         inputMode="decimal"
+        enterKeyHint="done"
+        ref={props.inputRef}
         autoFocus={props.autoFocus}
         value={props.value}
         onFocus={(e) => e.target.select()}
@@ -353,11 +388,15 @@ function NumberInput(props: {
   );
 }
 
-// Show the foods whose name contains the search text, in the order of the name.
-function useFoodSearch(foods: Food[]): [string, (text: string) => void, Food[]] {
+// Show the foods whose name contains the search text, in the order of the
+// name. With a usage and no search text, the most used foods come first.
+function useFoodSearch(foods: Food[], usage?: Map<string, Usage>): [string, (text: string) => void, Food[]] {
   const [search, setSearch] = useState('');
   const text = search.trim().toLowerCase();
-  const matches = foods.filter((f) => f.name.toLowerCase().includes(text)).sort(byName);
+  const count = (f: Food) => (usage && !text ? (usage.get(f.id)?.count ?? 0) : 0);
+  const matches = foods
+    .filter((f) => f.name.toLowerCase().includes(text))
+    .sort((a, b) => count(b) - count(a) || byName(a, b));
   return [search, setSearch, matches];
 }
 
@@ -379,6 +418,7 @@ type EntryMode = 'food' | 'custom';
 
 interface EntryFormProps {
   foods: Food[];
+  usage: Map<string, Usage>;
   entry?: Entry;
   onSave: (entry: Omit<Entry, 'id'>) => void;
   onCancel: () => void;
@@ -386,8 +426,9 @@ interface EntryFormProps {
 }
 
 // Add or edit an entry: a food from the food list with the grams, or a name
-// with a custom kcal value.
-function EntryForm({ foods, entry, onSave, onCancel, onDelete }: EntryFormProps) {
+// with a custom kcal value. A tap on a food fills in the grams of the last
+// entry of that food and moves the focus to the grams, so that Enter saves.
+function EntryForm({ foods, usage, entry, onSave, onCancel, onDelete }: EntryFormProps) {
   const initialFood = foods.find((f) => f.id === entry?.foodId);
   const [mode, setMode] = useState<EntryMode>(
     initialFood || (!entry && foods.length > 0) ? 'food' : 'custom',
@@ -396,7 +437,15 @@ function EntryForm({ foods, entry, onSave, onCancel, onDelete }: EntryFormProps)
   const [grams, setGrams] = useState(initialFood ? String(entry?.grams ?? '') : '');
   const [name, setName] = useState(initialFood ? '' : (entry?.name ?? ''));
   const [kcal, setKcal] = useState(initialFood ? '' : String(entry?.kcal ?? ''));
-  const [search, setSearch, matches] = useFoodSearch(foods);
+  const [search, setSearch, matches] = useFoodSearch(foods, usage);
+  const gramsInput = useRef<HTMLInputElement>(null);
+
+  const selectFood = (id: string) => {
+    setFoodId(id);
+    const last = usage.get(id)?.grams;
+    if (last) setGrams(String(last));
+    gramsInput.current?.focus();
+  };
 
   const food = foods.find((f) => f.id === foodId);
   const gramsValue = toNumber(grams);
@@ -443,7 +492,7 @@ function EntryForm({ foods, entry, onSave, onCancel, onDelete }: EntryFormProps)
                     type="button"
                     role="radio"
                     aria-checked={f.id === foodId}
-                    onClick={() => setFoodId(f.id)}
+                    onClick={() => selectFood(f.id)}
                   >
                     <span>{f.name}</span>
                     <small>{f.kcalPer100g} kcal/100 g</small>
@@ -453,7 +502,7 @@ function EntryForm({ foods, entry, onSave, onCancel, onDelete }: EntryFormProps)
               </div>
             </>
           )}
-          <NumberInput label="Grams" value={grams} onChange={setGrams} />
+          <NumberInput label="Grams" value={grams} onChange={setGrams} inputRef={gramsInput} />
         </>
       )}
 
@@ -463,7 +512,7 @@ function EntryForm({ foods, entry, onSave, onCancel, onDelete }: EntryFormProps)
             Name
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Custom" />
           </label>
-          <NumberInput label="kcal" value={kcal} onChange={setKcal} />
+          <NumberInput label="kcal" value={kcal} onChange={setKcal} autoFocus={!entry} />
         </>
       )}
 
