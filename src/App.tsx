@@ -534,7 +534,7 @@ function EntryForm({ foods, usage, entry, onSave, onCancel, onDelete }: EntryFor
           ) : (
             <>
               <SearchInput value={search} onChange={setSearch} />
-              <div className="choices short" role="radiogroup" aria-label="Food">
+              <div className="choices" role="radiogroup" aria-label="Food">
                 {matches.map((f) => (
                   <button
                     key={f.id}

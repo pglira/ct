@@ -282,10 +282,14 @@ ul {
   color: var(--muted);
 }
 
+/* The food list shrinks, so that the other parts of the sheet stay visible.
+   It always shows about two foods. */
 .choices {
+  flex: 0 1 auto;
+  min-height: 96px;
   display: grid;
+  align-content: start;
   gap: 4px;
-  max-height: 40dvh;
   overflow-y: auto;
 }
 
@@ -312,10 +316,6 @@ ul {
 
 .choices button[aria-checked='true'] small {
   color: inherit;
-}
-
-.choices.short {
-  max-height: 26dvh;
 }
 
 .number-pad {
@@ -353,7 +353,8 @@ ul {
 .keypad {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 48px;
+  /* The keys are lower on short screens. */
+  grid-auto-rows: clamp(40px, 6dvh, 52px);
   gap: 6px;
 }
 
@@ -416,8 +417,9 @@ ul {
   max-width: 600px;
   background: var(--card);
   padding: 20px 16px calc(env(safe-area-inset-bottom) + 20px);
-  display: grid;
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   -webkit-user-select: text;
   user-select: text;
 }
