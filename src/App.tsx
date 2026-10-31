@@ -1,4 +1,4 @@
-import { type ChangeEvent, type ReactNode, type Ref, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type Entry,
   type Food,
@@ -361,30 +361,81 @@ function SheetFrame(props: {
   );
 }
 
-// A positive number from the text of an input, or 0.
+// A positive number from the text of a number field, or 0.
 const toNumber = (v: string) => Math.max(0, Number(v.replace(',', '.')) || 0);
 
-function NumberInput(props: {
+// The keys of the keypad. 'back' removes the last character, 'clear' removes
+// all characters.
+const KEYS = ['7', '8', '9', 'back', '4', '5', '6', '1', '2', '3', 'clear', '0', '.'];
+const MAX_CHARS = 6;
+
+// Add a key to the text of a number. The text has at most MAX_CHARS
+// characters, one decimal point, one decimal digit and no leading zeros.
+function pressKey(text: string, key: string): string {
+  if (key === 'back') return text.slice(0, -1);
+  if (key === 'clear') return '';
+  if (key === '.') return text.includes('.') ? text : (text || '0') + '.';
+  if (text.length >= MAX_CHARS || /\.\d$/.test(text)) return text;
+  return text === '0' ? key : text + key;
+}
+
+// A number field with an in-app keypad, so that the system keyboard does not
+// open. A value that does not come from the keypad is preset: the first key
+// replaces it. A hardware keyboard can also enter the number, except when the
+// focus is in a text input. Enter submits the sheet.
+function NumberPad(props: {
   label: string;
+  unit: string;
   value: string;
   onChange: (value: string) => void;
-  autoFocus?: boolean;
-  inputRef?: Ref<HTMLInputElement>;
+  decimal?: boolean;
 }) {
+  const { value, onChange, decimal } = props;
+  // The last value that the keypad made.
+  const typed = useRef('');
+  const preset = value !== typed.current;
+
+  const press = (key: string) => {
+    typed.current = pressKey(preset ? '' : value, key);
+    onChange(typed.current);
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (/^[0-9]$/.test(e.key)) press(e.key);
+      else if (decimal && (e.key === '.' || e.key === ',')) press('.');
+      else if (e.key === 'Backspace') press('back');
+      else if (e.key === 'Delete') press('clear');
+      else if (e.key === 'Enter') document.querySelector<HTMLFormElement>('form.sheet')?.requestSubmit();
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   return (
-    <label>
-      {props.label}
-      <input
-        type="text"
-        inputMode="decimal"
-        enterKeyHint="done"
-        ref={props.inputRef}
-        autoFocus={props.autoFocus}
-        value={props.value}
-        onFocus={(e) => e.target.select()}
-        onChange={(e) => props.onChange(e.target.value.replace(/[^0-9.,]/g, ''))}
-      />
-    </label>
+    <div className="number-pad">
+      <span className="number-label">{props.label}</span>
+      <output className={preset ? 'preset' : undefined} aria-live="polite">
+        {value || '0'}
+        <small> {props.unit}</small>
+      </output>
+      <div className={decimal ? 'keypad' : 'keypad no-decimal'}>
+        {KEYS.filter((key) => decimal || key !== '.').map((key) => (
+          <button
+            key={key}
+            type="button"
+            className={`key key-${key === '.' ? 'dot' : key}`}
+            onClick={() => press(key)}
+            aria-label={key === 'back' ? 'Delete last digit' : key === 'clear' ? 'Clear' : undefined}
+          >
+            {key === 'back' ? <Icon name="backspace" size={26} /> : key === 'clear' ? 'C' : key}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -427,7 +478,7 @@ interface EntryFormProps {
 
 // Add or edit an entry: a food from the food list with the grams, or a name
 // with a custom kcal value. A tap on a food fills in the grams of the last
-// entry of that food and moves the focus to the grams, so that Enter saves.
+// entry of that food, so that Save adds the entry.
 function EntryForm({ foods, usage, entry, onSave, onCancel, onDelete }: EntryFormProps) {
   const initialFood = foods.find((f) => f.id === entry?.foodId);
   const [mode, setMode] = useState<EntryMode>(
@@ -438,13 +489,11 @@ function EntryForm({ foods, usage, entry, onSave, onCancel, onDelete }: EntryFor
   const [name, setName] = useState(initialFood ? '' : (entry?.name ?? ''));
   const [kcal, setKcal] = useState(initialFood ? '' : String(entry?.kcal ?? ''));
   const [search, setSearch, matches] = useFoodSearch(foods, usage);
-  const gramsInput = useRef<HTMLInputElement>(null);
 
   const selectFood = (id: string) => {
     setFoodId(id);
     const last = usage.get(id)?.grams;
     if (last) setGrams(String(last));
-    gramsInput.current?.focus();
   };
 
   const food = foods.find((f) => f.id === foodId);
@@ -485,7 +534,7 @@ function EntryForm({ foods, usage, entry, onSave, onCancel, onDelete }: EntryFor
           ) : (
             <>
               <SearchInput value={search} onChange={setSearch} />
-              <div className="choices" role="radiogroup" aria-label="Food">
+              <div className="choices short" role="radiogroup" aria-label="Food">
                 {matches.map((f) => (
                   <button
                     key={f.id}
@@ -502,7 +551,7 @@ function EntryForm({ foods, usage, entry, onSave, onCancel, onDelete }: EntryFor
               </div>
             </>
           )}
-          <NumberInput label="Grams" value={grams} onChange={setGrams} inputRef={gramsInput} />
+          <NumberPad label="Amount" unit="g" value={grams} onChange={setGrams} decimal />
         </>
       )}
 
@@ -512,14 +561,16 @@ function EntryForm({ foods, usage, entry, onSave, onCancel, onDelete }: EntryFor
             Name
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Custom" />
           </label>
-          <NumberInput label="kcal" value={kcal} onChange={setKcal} autoFocus={!entry} />
+          <NumberPad label="Energy" unit="kcal" value={kcal} onChange={setKcal} />
         </>
       )}
 
-      <p className="preview">
-        {mode === 'food' && !food ? 'Select a food.' : 'Energy: '}
-        {(mode === 'custom' || food) && <strong>{result?.kcal ?? 0} kcal</strong>}
-      </p>
+      {mode === 'food' && (
+        <p className="preview">
+          {food ? 'Energy: ' : 'Select a food.'}
+          {food && <strong>{result?.kcal ?? 0} kcal</strong>}
+        </p>
+      )}
 
       <div className="buttons">
         {onDelete && <DeleteButton onDelete={onDelete} />}
@@ -628,7 +679,7 @@ function FoodForm({ food, onSave, onCancel, onDelete }: FoodFormProps) {
         Name
         <input value={name} onChange={(e) => setName(e.target.value)} autoFocus={!food} />
       </label>
-      <NumberInput label="kcal per 100 g" value={kcal} onChange={setKcal} />
+      <NumberPad label="Energy per 100 g" unit="kcal" value={kcal} onChange={setKcal} decimal />
       <div className="buttons">
         {onDelete && <DeleteButton onDelete={onDelete} />}
         <button type="button" onClick={onCancel}>
@@ -648,7 +699,7 @@ function SettingsForm(props: { limit: number; onSave: (limit: number) => void; o
 
   return (
     <SheetFrame title="Settings" onCancel={props.onCancel} onSubmit={() => value > 0 && props.onSave(value)}>
-      <NumberInput label="Daily limit (kcal)" value={limit} onChange={setLimit} />
+      <NumberPad label="Daily limit" unit="kcal" value={limit} onChange={setLimit} />
       <div className="buttons">
         <button type="button" onClick={props.onCancel}>
           Cancel

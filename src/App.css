@@ -314,6 +314,67 @@ ul {
   color: inherit;
 }
 
+.choices.short {
+  max-height: 26dvh;
+}
+
+.number-pad {
+  display: grid;
+  gap: 6px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.number-label {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.number-pad output {
+  padding: 6px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 32px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A preset value is muted: the first key replaces it. */
+.number-pad output.preset {
+  color: var(--muted);
+}
+
+.number-pad output small {
+  font-size: 16px;
+  color: var(--muted);
+}
+
+/* A phone keypad with the delete key and the clear key in a fourth column. */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 48px;
+  gap: 6px;
+}
+
+.key {
+  font-size: 22px;
+  background: var(--control);
+}
+
+.key-back,
+.key-clear {
+  grid-row: span 2;
+}
+
+.key-0 {
+  grid-column: span 2;
+}
+
+.no-decimal .key-0 {
+  grid-column: span 3;
+}
+
 .hint,
 .error {
   margin: 0;
