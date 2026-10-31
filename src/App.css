@@ -318,6 +318,43 @@ ul {
   color: inherit;
 }
 
+.food-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.food-name .svg-icon {
+  color: #ffb300;
+}
+
+.choices button[aria-checked='true'] .food-name .svg-icon {
+  color: inherit;
+}
+
+.food-row {
+  display: flex;
+  gap: 4px;
+}
+
+.food-row > button:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.choices .star {
+  flex: none;
+  width: 48px;
+  justify-content: center;
+  align-items: center;
+  color: var(--muted);
+}
+
+.choices .star.favorite {
+  color: #ffb300;
+}
+
 .number-pad {
   display: grid;
   gap: 6px;

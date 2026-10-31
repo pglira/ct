@@ -3,6 +3,7 @@ import {
   type Entry,
   type Food,
   type Usage,
+  byFavorite,
   byName,
   dayKey,
   exportFoods,
@@ -80,7 +81,8 @@ export default function App() {
   const setEntries = (update: (entries: Entry[]) => Entry[]) =>
     setDay((d) => ({ ...d, entries: update(d.entries) }));
   const removeEntry = (id: string) => setEntries((es) => es.filter((e) => e.id !== id));
-  const addEntry = (entry: Omit<Entry, 'id'>) => setEntries((es) => [...es, { ...entry, id: crypto.randomUUID() }]);
+  const addEntry = (entry: Omit<Entry, 'id'>) =>
+    setEntries((es) => [...es, { ...entry, id: crypto.randomUUID() }]);
 
   // The entries of the past days, for the usage of each food and the quick
   // add row.
@@ -156,7 +158,9 @@ export default function App() {
         <div className="quick" role="group" aria-label="Quick add">
           {recent.map((entry) => (
             <button
-              key={entry.foodId ? `food/${entry.foodId}/${entry.grams}` : `custom/${entry.name}/${entry.kcal}`}
+              key={
+                entry.foodId ? `food/${entry.foodId}/${entry.grams}` : `custom/${entry.name}/${entry.kcal}`
+              }
               onClick={() => addEntry(entry)}
               title={`Add ${entry.name}`}
             >
@@ -234,6 +238,9 @@ export default function App() {
         <FoodList
           foods={foods}
           onSelect={(id) => setSheet({ kind: 'food', id })}
+          onFavorite={(id) =>
+            setFoods((fs) => fs.map((f) => (f.id === id ? { ...f, favorite: !f.favorite } : f)))
+          }
           onImport={setFoods}
           onClose={close}
         />
@@ -439,15 +446,17 @@ function NumberPad(props: {
   );
 }
 
-// Show the foods whose name contains the search text, in the order of the
-// name. With a usage and no search text, the most used foods come first.
+// Show the foods whose name contains the search text. Favorite foods come
+// first, then the other foods. In each group, the foods are in the order of the
+// name. With a usage and no search text, the most used foods of a group come
+// first.
 function useFoodSearch(foods: Food[], usage?: Map<string, Usage>): [string, (text: string) => void, Food[]] {
   const [search, setSearch] = useState('');
   const text = search.trim().toLowerCase();
   const count = (f: Food) => (usage && !text ? (usage.get(f.id)?.count ?? 0) : 0);
   const matches = foods
     .filter((f) => f.name.toLowerCase().includes(text))
-    .sort((a, b) => count(b) - count(a) || byName(a, b));
+    .sort((a, b) => byFavorite(a, b) || count(b) - count(a) || byName(a, b));
   return [search, setSearch, matches];
 }
 
@@ -515,13 +524,7 @@ function EntryForm({ foods, usage, entry, onSave, onCancel, onDelete }: EntryFor
     >
       <div className="segmented" role="radiogroup" aria-label="Entry type">
         {(['food', 'custom'] as EntryMode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            role="radio"
-            aria-checked={m === mode}
-            onClick={() => setMode(m)}
-          >
+          <button key={m} type="button" role="radio" aria-checked={m === mode} onClick={() => setMode(m)}>
             {m === 'food' ? 'Food list' : 'Custom kcal'}
           </button>
         ))}
@@ -543,7 +546,7 @@ function EntryForm({ foods, usage, entry, onSave, onCancel, onDelete }: EntryFor
                     aria-checked={f.id === foodId}
                     onClick={() => selectFood(f.id)}
                   >
-                    <span>{f.name}</span>
+                    <FoodName food={f} />
                     <small>{f.kcalPer100g} kcal/100 g</small>
                   </button>
                 ))}
@@ -585,16 +588,28 @@ function EntryForm({ foods, usage, entry, onSave, onCancel, onDelete }: EntryFor
   );
 }
 
+// The name of a food, with a star for a favorite food.
+function FoodName({ food }: { food: Food }) {
+  return (
+    <span className="food-name">
+      {food.favorite && <Icon name="star" size={14} filled />}
+      {food.name}
+    </span>
+  );
+}
+
 interface FoodListProps {
   foods: Food[];
   onSelect: (id: string | null) => void;
+  onFavorite: (id: string) => void;
   onImport: (foods: Food[]) => void;
   onClose: () => void;
 }
 
-// The food list with the energy per 100 g of each food. The list can be
-// exported to and imported from a JSON file.
-function FoodList({ foods, onSelect, onImport, onClose }: FoodListProps) {
+// The food list with the energy per 100 g of each food. The star of a food
+// marks it as a favorite or not. The list can be exported to and imported from
+// a JSON file.
+function FoodList({ foods, onSelect, onFavorite, onImport, onClose }: FoodListProps) {
   const [search, setSearch, matches] = useFoodSearch(foods);
   const [error, setError] = useState('');
 
@@ -618,10 +633,22 @@ function FoodList({ foods, onSelect, onImport, onClose }: FoodListProps) {
       {foods.length > 0 && <SearchInput value={search} onChange={setSearch} />}
       <div className="choices">
         {matches.map((f) => (
-          <button key={f.id} type="button" onClick={() => onSelect(f.id)}>
-            <span>{f.name}</span>
-            <small>{f.kcalPer100g} kcal/100 g</small>
-          </button>
+          <div key={f.id} className="food-row">
+            <button type="button" onClick={() => onSelect(f.id)}>
+              <span>{f.name}</span>
+              <small>{f.kcalPer100g} kcal/100 g</small>
+            </button>
+            <button
+              type="button"
+              className={f.favorite ? 'star favorite' : 'star'}
+              aria-pressed={!!f.favorite}
+              aria-label={`Favorite: ${f.name}`}
+              title={f.favorite ? 'Remove from favorites' : 'Add to favorites'}
+              onClick={() => onFavorite(f.id)}
+            >
+              <Icon name="star" filled={f.favorite} />
+            </button>
+          </div>
         ))}
         {foods.length === 0 && <p className="hint">No foods. Tap New food to add a food.</p>}
         {foods.length > 0 && matches.length === 0 && <p className="hint">No food matches the search.</p>}

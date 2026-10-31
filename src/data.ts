@@ -2,6 +2,8 @@ export interface Food {
   id: string;
   name: string;
   kcalPer100g: number;
+  // Favorite foods come first in the lists.
+  favorite?: boolean;
 }
 
 // One food that the user ate. An entry from the food list has the id of the
@@ -52,14 +54,14 @@ export const kcalOf = (food: Food, grams: number) => Math.round((food.kcalPer100
 
 export const byName = (a: Food, b: Food) => a.name.localeCompare(b.name);
 
+// Favorite foods first.
+export const byFavorite = (a: Food, b: Food) => Number(!!b.favorite) - Number(!!a.favorite);
+
 export function isFoodList(value: unknown): value is Food[] {
   return (
     Array.isArray(value) &&
     value.every(
-      (f) =>
-        typeof f?.id === 'string' &&
-        typeof f.name === 'string' &&
-        typeof f.kcalPer100g === 'number',
+      (f) => typeof f?.id === 'string' && typeof f.name === 'string' && typeof f.kcalPer100g === 'number',
     )
   );
 }

@@ -12,19 +12,21 @@ const PATHS = {
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',
   download: 'M12 4v11M7 10l5 5l5-5M4 20h16',
   upload: 'M12 15V4M7 9l5-5l5 5M4 20h16',
+  star: 'M12 3l2.7 5.8 6.3.7-4.7 4.3 1.3 6.2-5.6-3.2-5.6 3.2 1.3-6.2L3 9.5l6.3-.7z',
   backspace: 'M8 6h12v12H8l-5-6zM11 9l6 6M17 9l-6 6',
 };
 
 export type IconName = keyof typeof PATHS;
 
-export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+// A filled icon uses the current text color also for its area.
+export function Icon({ name, size = 20, filled }: { name: IconName; size?: number; filled?: boolean }) {
   return (
     <svg
       className="svg-icon"
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
       strokeWidth={2}
       strokeLinecap="square"
