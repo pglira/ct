@@ -2,9 +2,12 @@ import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState 
 import {
   type Entry,
   type Food,
+  type QuickEntry,
+  type QuickItem,
   type Usage,
   byFavorite,
   byName,
+  countEntry,
   dayKey,
   exportFoods,
   isFoodList,
@@ -13,10 +16,13 @@ import {
   loadFoods,
   loadLimit,
   loadPastEntries,
-  recentEntries,
+  loadQuick,
+  quickItems,
   saveEntries,
   saveFoods,
   saveLimit,
+  saveQuick,
+  toggleFavoriteEntry,
   usageOf,
 } from './data';
 import { Icon, type IconName } from './icons';
@@ -38,12 +44,15 @@ const DAY_CHECK_MS = 60_000;
 type Sheet =
   | { kind: 'entry'; id: string | null }
   | { kind: 'foods' }
+  | { kind: 'quick' }
   | { kind: 'food'; id: string | null }
   | { kind: 'settings' }
   | null;
 
-// The number of recent entries that the quick add row shows.
+// The number of entries that the quick add row shows, if there are not more
+// favorites. The quick add sheet shows up to QUICK_LIST_MAX entries.
 const QUICK_ADD_MAX = 8;
+const QUICK_LIST_MAX = 30;
 
 // The entries of one day, with the storage key of that day.
 interface Day {
@@ -57,6 +66,7 @@ export default function App() {
   const [limit, setLimit] = useState(loadLimit);
   const [foods, setFoods] = useState(loadFoods);
   const [day, setDay] = useState(loadDay);
+  const [quick, setQuick] = useState(loadQuick);
   const [sheet, setSheet] = useState<Sheet>(null);
   // The id of the entry whose row shows the swipe actions.
   const [swiped, setSwiped] = useState<string | null>(null);
@@ -65,6 +75,7 @@ export default function App() {
   useEffect(() => saveLimit(limit), [limit]);
   useEffect(() => saveFoods(foods), [foods]);
   useEffect(() => saveEntries(day.key, day.entries), [day]);
+  useEffect(() => saveQuick(quick), [quick]);
 
   // Show the entries of the new day after midnight, also when the app comes
   // back from the background.
@@ -80,16 +91,27 @@ export default function App() {
 
   const setEntries = (update: (entries: Entry[]) => Entry[]) =>
     setDay((d) => ({ ...d, entries: update(d.entries) }));
-  const removeEntry = (id: string) => setEntries((es) => es.filter((e) => e.id !== id));
-  const addEntry = (entry: Omit<Entry, 'id'>) =>
+  // Adding, changing and removing a single entry also updates the counts of
+  // the quick add row. Clearing the day does not.
+  const removeEntry = (id: string) => {
+    const old = day.entries.find((e) => e.id === id);
+    if (old) setQuick((q) => countEntry(q, old, -1));
+    setEntries((es) => es.filter((e) => e.id !== id));
+  };
+  const addEntry = (entry: QuickEntry) => {
+    setQuick((q) => countEntry(q, entry, 1));
     setEntries((es) => [...es, { ...entry, id: crypto.randomUUID() }]);
+  };
+  const changeEntry = (old: Entry, entry: QuickEntry) => {
+    setQuick((q) => countEntry(countEntry(q, old, -1), entry, 1));
+    setEntries((es) => es.map((e) => (e.id === old.id ? { ...entry, id: e.id } : e)));
+  };
 
-  // The entries of the past days, for the usage of each food and the quick
-  // add row.
+  // The entries of the past days, for the usage of each food.
   const past = useMemo(() => loadPastEntries(day.key), [day.key]);
   const history = [...past, ...day.entries];
   const usage = usageOf(history);
-  const recent = recentEntries(history, foods, QUICK_ADD_MAX);
+  const recent = quickItems(quick, foods, QUICK_ADD_MAX);
 
   const eaten = day.entries.reduce((sum, e) => sum + e.kcal, 0);
   const remaining = limit - eaten;
@@ -154,23 +176,20 @@ export default function App() {
         <span className="label">Daily limit: {limit} kcal</span>
       </section>
 
-      {recent.length > 0 && (
-        <div className="quick" role="group" aria-label="Quick add">
-          {recent.map((entry) => (
-            <button
-              key={
-                entry.foodId ? `food/${entry.foodId}/${entry.grams}` : `custom/${entry.name}/${entry.kcal}`
-              }
-              onClick={() => addEntry(entry)}
-              title={`Add ${entry.name}`}
-            >
-              <Icon name="plus" size={16} />
-              <span className="quick-name">{entry.name}</span>
-              <small>{entry.grams ? `${entry.grams} g` : `${entry.kcal} kcal`}</small>
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="quick" role="group" aria-label="Quick add">
+        <button
+          className="quick-edit"
+          onClick={() => setSheet({ kind: 'quick' })}
+          aria-label="Favorite entries"
+          title="Favorite entries"
+        >
+          <Icon name="star" size={18} />
+        </button>
+        {recent.map((item) => (
+          <QuickButton key={item.key} item={item} onAdd={addEntry} />
+        ))}
+        {recent.length === 0 && <span className="quick-hint">Your frequent entries show here.</span>}
+      </div>
 
       <div className="toolbar">
         <span>Today</span>
@@ -217,7 +236,7 @@ export default function App() {
           onCancel={close}
           onSave={(entry) => {
             if (sheetEntry) {
-              setEntries((es) => es.map((e) => (e.id === sheetEntry.id ? { ...entry, id: e.id } : e)));
+              changeEntry(sheetEntry, entry);
             } else {
               addEntry(entry);
             }
@@ -242,6 +261,18 @@ export default function App() {
             setFoods((fs) => fs.map((f) => (f.id === id ? { ...f, favorite: !f.favorite } : f)))
           }
           onImport={setFoods}
+          onClose={close}
+        />
+      )}
+
+      {sheet?.kind === 'quick' && (
+        <QuickList
+          items={quickItems(quick, foods, QUICK_LIST_MAX)}
+          onAdd={(entry) => {
+            addEntry(entry);
+            close();
+          }}
+          onFavorite={(entry) => setQuick((q) => toggleFavoriteEntry(q, entry))}
           onClose={close}
         />
       )}
@@ -595,6 +626,71 @@ function FoodName({ food }: { food: Food }) {
       {food.favorite && <Icon name="star" size={14} filled />}
       {food.name}
     </span>
+  );
+}
+
+const quickAmount = (entry: QuickEntry) => (entry.grams ? `${entry.grams} g` : `${entry.kcal} kcal`);
+
+// A button of the quick add row. A tap adds the entry to today.
+function QuickButton({ item, onAdd }: { item: QuickItem; onAdd: (entry: QuickEntry) => void }) {
+  const { entry, favorite } = item;
+  return (
+    <button
+      className={favorite ? 'favorite' : undefined}
+      onClick={() => onAdd(entry)}
+      title={`Add ${entry.name}`}
+    >
+      {favorite ? <Icon name="star" size={16} filled /> : <Icon name="plus" size={16} />}
+      <span className="quick-name">{entry.name}</span>
+      <small>{quickAmount(entry)}</small>
+    </button>
+  );
+}
+
+interface QuickListProps {
+  items: QuickItem[];
+  onAdd: (entry: QuickEntry) => void;
+  onFavorite: (entry: QuickEntry) => void;
+  onClose: () => void;
+}
+
+// The favorite and the frequent entries. A tap on an entry adds it to today.
+// The star of an entry marks it as a favorite or not. Favorite entries come
+// first in the quick add row.
+function QuickList({ items, onAdd, onFavorite, onClose }: QuickListProps) {
+  return (
+    <SheetFrame title="Favorite entries" onCancel={onClose} onSubmit={onClose}>
+      <p className="hint">Tap a star to show the entry first in the quick add row.</p>
+      <div className="choices">
+        {items.map(({ key, entry, favorite }) => (
+          <div key={key} className="food-row">
+            <button type="button" onClick={() => onAdd(entry)} title={`Add ${entry.name}`}>
+              <span>{entry.name}</span>
+              <small>
+                {quickAmount(entry)}
+                {entry.grams ? ` · ${entry.kcal} kcal` : ''}
+              </small>
+            </button>
+            <button
+              type="button"
+              className={favorite ? 'star favorite' : 'star'}
+              aria-pressed={favorite}
+              aria-label={`Favorite: ${entry.name} ${quickAmount(entry)}`}
+              title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+              onClick={() => onFavorite(entry)}
+            >
+              <Icon name="star" filled={favorite} />
+            </button>
+          </div>
+        ))}
+        {items.length === 0 && <p className="hint">No entries yet. Add an entry with +.</p>}
+      </div>
+      <div className="buttons">
+        <button type="submit" className="primary">
+          Close
+        </button>
+      </div>
+    </SheetFrame>
   );
 }
 

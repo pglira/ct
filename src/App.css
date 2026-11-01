@@ -576,6 +576,28 @@ input[type='number']::-webkit-outer-spin-button {
   border-left: 4px solid var(--accent);
 }
 
+.quick .quick-edit {
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+  color: #ffb300;
+  border-left: none;
+}
+
+.quick button.favorite {
+  border-left-color: #ffb300;
+}
+
+.quick button.favorite .svg-icon {
+  color: #ffb300;
+}
+
+.quick-hint {
+  align-self: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .quick-name {
   overflow: hidden;
   text-overflow: ellipsis;

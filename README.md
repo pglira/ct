@@ -3,7 +3,7 @@
 A Progressive Web App that tracks the calories that you eat in one day.
 
 - Add an entry from the food list with the grams, or add an entry with a custom kcal value.
-- Tap a recent entry in the quick add row to add it again with one tap.
+- Tap an entry in the quick add row to add it again with one tap. The row shows the favorite entries first, then the most frequent entries. Tap the star at the start of the row to mark entries as favorites. Clearing the day does not change the row.
 - In the new entry sheet, the most used foods come first. A tap on a food fills in the grams of its last entry, so that Save adds the entry.
 - Enter all numbers with the keypad of the app. The system keyboard does not open.
 - See the eaten and the remaining calories of the day against the daily limit.
