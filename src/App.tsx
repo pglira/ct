@@ -1,5 +1,7 @@
 import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type Backup, exportBackup, readBackup, restoreBackup } from './backup';
 import {
+  BACKUP_APP,
   type Entry,
   type Food,
   type QuickEntry,
@@ -10,6 +12,7 @@ import {
   countEntry,
   dayKey,
   exportFoods,
+  isDataKey,
   isFoodList,
   kcalOf,
   loadEntries,
@@ -823,6 +826,7 @@ function SettingsForm(props: { limit: number; onSave: (limit: number) => void; o
   return (
     <SheetFrame title="Settings" onCancel={props.onCancel} onSubmit={() => value > 0 && props.onSave(value)}>
       <NumberPad label="Daily limit" unit="kcal" value={limit} onChange={setLimit} />
+      <BackupSection />
       <div className="buttons">
         <button type="button" onClick={props.onCancel}>
           Cancel
@@ -832,5 +836,63 @@ function SettingsForm(props: { limit: number; onSave: (limit: number) => void; o
         </button>
       </div>
     </SheetFrame>
+  );
+}
+
+// Export all data of the app to a backup file, or replace all data with the
+// data of a backup file. The import needs a second tap to replace the data.
+function BackupSection() {
+  const [backup, setBackup] = useState<Backup | null>(null);
+  const [error, setError] = useState('');
+
+  const importFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear the input so that the same file can be selected again.
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setBackup(readBackup(await file.text(), BACKUP_APP));
+      setError('');
+    } catch (err) {
+      setBackup(null);
+      setError(err instanceof Error ? err.message : 'The file is not a valid backup.');
+    }
+  };
+
+  return (
+    <div className="backup">
+      <span className="number-label">Backup</span>
+      <p className="hint">Export all data to a file. Import the file on the new phone.</p>
+      <div className="file-buttons">
+        <button
+          type="button"
+          className="file-button"
+          onClick={() => exportBackup(BACKUP_APP, isDataKey)}
+          title="Export all data to a file"
+        >
+          <Icon name="download" size={18} />
+          Export
+        </button>
+        <label className="file-button" title="Import all data from a file">
+          <Icon name="upload" size={18} />
+          Import
+          <input type="file" accept="application/json,.json" hidden onChange={importFile} />
+        </label>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {backup && (
+        <button
+          type="button"
+          className="replace"
+          onClick={() => {
+            restoreBackup(backup, isDataKey);
+            location.reload();
+          }}
+        >
+          Tap to replace all data
+          <small>Backup of {new Date(backup.exported).toLocaleString()}</small>
+        </button>
+      )}
+    </div>
   );
 }

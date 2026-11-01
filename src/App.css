@@ -429,6 +429,23 @@ ul {
   gap: 8px;
 }
 
+.backup {
+  display: grid;
+  gap: 8px;
+}
+
+.sheet .replace {
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  background: var(--danger);
+  color: #fff;
+}
+
+.sheet .replace small {
+  opacity: 0.85;
+}
+
 .sheet .file-button {
   display: flex;
   padding: 12px;

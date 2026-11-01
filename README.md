@@ -10,6 +10,7 @@ A Progressive Web App that tracks the calories that you eat in one day.
 - Tap an entry to edit it. Swipe an entry to the left to show Edit and Delete.
 - Keep a food list with the kcal per 100 g of each food. Tap the star of a food to make it a favorite. Favorite foods come first in the lists. Export the list to a JSON file and import it again.
 - The entries of each day are stored separately, so each new day starts empty.
+- Back up all data: in the settings, Export saves all data to a file. Import the file on a new phone to replace all data.
 
 ## Tech
 

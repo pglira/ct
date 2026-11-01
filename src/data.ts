@@ -18,6 +18,9 @@ export interface Entry {
 
 export const DEFAULT_LIMIT = 2200;
 
+// The name of the app in a backup file.
+export const BACKUP_APP = 'cal-track-app';
+
 const LIMIT_KEY = 'dailyLimit';
 const FOODS_KEY = 'foodDb';
 
@@ -128,6 +131,10 @@ export interface Quick {
 }
 
 const QUICK_KEY = 'quickAdd';
+
+// The storage keys of all data of the app. The theme is not data.
+export const isDataKey = (key: string) =>
+  key === LIMIT_KEY || key === FOODS_KEY || key === QUICK_KEY || /^entries_\d+-\d+-\d+$/.test(key);
 
 export const quickKey = (e: QuickEntry) =>
   e.foodId && e.grams ? `food/${e.foodId}/${e.grams}` : `custom/${e.name}/${e.kcal}`;
